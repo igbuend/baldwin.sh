@@ -362,13 +362,13 @@ osv-scanner:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created needed directories."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    osv-scanner --call-analysis --no-ignore --format table --recursive "$JUST_HOME"/src/ > ./output/osv/"$dt"_google-osv-scanner.txt || true
+    osv-scanner --call-analysis --no-ignore --format table --recursive "$JUST_HOME"/src/ > ./output/osv/"$dt"_google-osv-scanner.txt &>/dev/null || true
     echo "    [02/04] Ran osv-scanner and created TXT results."
-    osv-scanner --call-analysis --no-ignore --format sarif --recursive "$JUST_HOME"/src/ > ./output/osv/"$dt"_google-osv-scanner.sarif || true
+    osv-scanner --call-analysis --no-ignore --format sarif --recursive "$JUST_HOME"/src/ > ./output/osv/"$dt"_google-osv-scanner.sarif &>/dev/null || true
     echo "    [03/04] Ran osv-scanner and created JSON results."
     rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
     cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true
-    echo "    [04/04] Copied SARIF results to ourput/sarif folder."
+    echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
