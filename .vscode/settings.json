@@ -1,0 +1,12 @@
+{
+  "editor.fontSize": 12,
+  "workbench.startupEditor": "none",
+  "shellcheck.enableQuickFix": true,
+  "powershell.scriptAnalysis.settingsPath": ".vscode/analyzersettings.psd1",
+  "powershell.scriptAnalysis.enable": true,
+  "sarif-viewer.connectToGithubCodeScanning": "off",
+  "[shellscript]": {
+    "files.eol": "auto"
+  },
+  "git.ignoreLimitWarning": true
+}

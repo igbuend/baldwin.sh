@@ -1,0 +1,41 @@
+{
+	"name": "malpertus",
+	"privileged": true,
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"runArgs": [
+		"--network=host",
+		"--hostname=malpertus"
+	],
+	"capAdd": [
+		"NET_RAW",
+		"NET_ADMIN"
+	],
+	"remoteUser": "baldwin",
+	"mounts": [
+		"source=${localWorkspaceFolderBasename}-src,target=${containerWorkspaceFolder}/src,type=volume"
+	],
+  "features": {
+    "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {}
+  },
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"bierner.markdown-mermaid",
+				"Google.gemini-cli-vscode-ide-companion",
+				"mads-hartmann.bash-ide-vscode",
+				"MS-SarifVSCode.sarif-viewer",
+				"skellock.just",
+				"timonwong.shellcheck",
+				"vsce-toolroom.vscode-beautify"
+			],
+			"settings": {
+				"files.eol": "auto",
+				"window.restoreWindows": "none",
+				"workbench.startupEditor": "none"
+			}
+		}
+	},
+	"postCreateCommand": "bash -i -c ./.devcontainer/postCreateCommand.sh"
+}

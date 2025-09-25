@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+# Simple configure script for baldwin.sh (https://github.com/igbuend/baldwin.sh)
+
+echo "Configuring baldwin.sh..."
+
+# Check for required tools
+echo "Checking for required tools..."
+for tool in bash make; do
+    if ! command -v $tool &> /dev/null; then
+        echo "Error: $tool is not installed."
+        exit 1
+    fi
+done
+echo "All required tools are available."
+
+# Set default installation prefix
+PREFIX="/usr/local"
+if [ "$1" == "--prefix" ] && [ -n "$2" ]; then
+    PREFIX="$2"
+fi
+echo "Installation prefix set to: $PREFIX"
+
+# Generate Makefile
+echo "Generating Makefile..."
+cat <<EOL > Makefile
+PHONY: all baldwin.sh install
+.DEFAULT_GOAL := baldwin.sh
+PREFIX=$PREFIX
+
+all: baldwin.sh
+
+baldwin.sh:
+$(printf '\t')touch bin/baldwin.sh && chmod +x bin/baldwin.sh
+
+install:
+$(printf '\t')mkdir -p \$(PREFIX)/bin && cp bin/baldwin.sh \$(PREFIX)/bin/
+
+EOL
+
+echo "Configuration complete. Run 'make' to build the project."
