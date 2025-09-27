@@ -195,7 +195,7 @@ Malpertus is one of the myriad of spellings of the name of the lair of [**Reynar
 
 ## Future (depends on how much coffee I can afford)
 
-- v1.0 More consisten handling of errors/output and better documentation
+- v1.0 More consistent handling of errors/output and better documentation
 - v2.0 Automated vulnerability report of all output
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K81JFF22)
