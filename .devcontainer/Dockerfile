@@ -2,12 +2,12 @@ FROM ubuntu:plucky
 # It is relatively straightforward to change to Debian/Kali. Been there, done that, got the T-Shirt.
 # Not going back, most 3rd party apps only support Ubuntu out of the box and my time is valuable.
 # do not change USER_UID/USER_GUID since plenty of badly written docker/container software only works with UID 1000. Sigh.
-ARG USER_UID=1000
-ARG USER_GID=$USER_UID
+ENV USER_UID=1000
+ENV USER_GID=$USER_UID
 # docker uses "sh" by default, we want bash, since we need some buildin commands might not not be buildin with lesser shells.
 SHELL ["/bin/bash", "-c"]
 # Please refer to the README.md. Baldwin is a character (the "ass" aka donkey) in the medieval fable of Reynard the Fox.
-ARG USER_NAME=baldwin
+ENV USER_NAME=baldwin
 
 # TODO move this to separate file and use awk/xargs (standard install for Ubuntu and others ??)
 # xargs -a <(awk '! /^ *(#|$)/' "$packagelist") -r -- sudo apt-get -y install --no-install-recommends

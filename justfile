@@ -255,20 +255,15 @@ upgrade:
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # Analyses technology with AppInspector tool over sources in $PWD/src/
-appinspector:
+appinspector: 
   #!/usr/bin/env bash
   set -euo pipefail
-  mkdir -p "$PWD"/output/appinspector
-  mkdir -p "$PWD"/logs/appinspector
-  mkdir -p "$PWD"/src/
-  HOST_NAME="$(hostname)"
-  progname="$(basename "$0")"
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
-  echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  mkdir -p "$JUST_HOME"/output/appinspector && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created needed directories."
   if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
-    appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$PWD"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Verbose --output-file-path "$PWD"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$PWD"/src/
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$PWD"/logs/appinspector/"$dt"_appinspector_json.log --log-file-level Verbose --output-file-path "$PWD"/output/appinspector/"$dt"_appinspector.json --output-file-format json --no-show-progress -s "$PWD"/src/
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$PWD"/logs/appinspector/"$dt"_appinspector_text.log --log-file-level Verbose --output-file-path "$PWD"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$PWD"/src/
+    appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Verbose --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ && echo "    [02/04] Ran appinspector and created HTML output."
+    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_json.log --log-file-level Verbose --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.json --output-file-format json --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/04] Ran appinspector and created JSON output"
+    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/04] Ran appinspector and created TXT output."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
