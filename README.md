@@ -4,7 +4,7 @@
 
 A dedicated Dev Container for your Secure Code Reviews!
 
-Create a dedicated folder for your project. Put the source code archive into the "input" folder. **baldwin.sh** takes care of the rest!
+Create a folder for your project. Put the source code archive into the "/input" folder. **baldwin.sh** takes care of the rest!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K81JFF22)
 
@@ -12,7 +12,7 @@ Create a dedicated folder for your project. Put the source code archive into the
 
 The following tasks are automated, thanks to the [Justfile command runner](https://github.com/casey/just):
 
-- **code handover**: creates a checksum (so you can proof which code you reviewed), unzips the archive, calculates the lines of code (LOC) and displays  the structure of the archive.
+- **code handover**: creates a checksum (so you can proof which code you reviewed), unzips the archive, calculates the lines of code (LOC) and displays the structure of the archive.
 
 - **technology review**: reports on technologies used and security sensitive parts of the code, like authentication, authorization, logging, ... using [Microsoft Applicatop Inspector](https://github.com/microsoft/ApplicationInspector).
 
@@ -80,7 +80,7 @@ Copy the folder to a dedicated project folder, e.g. `~/projects/myproject`:
 mv -T baldwin.sh ~/projects/myproject
 ```
 
-Now open this folder in Visual Studio code. After a short while, Visual Studio code will detect that a Dev Container configuration is present and will ask to open it into a container. Click "Open in container". 
+Now open this folder in Visual Studio code. After a short while, Visual Studio code will detect that a Dev Container configuration is present and will ask to open it into a container. Click "Open in container".
 
 The first time, this might take a while, next time it will be much faster since the required files are already cached by Docker.
 
@@ -179,7 +179,7 @@ just baldwin
 
 Just copy the `bin/baldwin.sh` to `/usr/local/bin` and it is ready to use.
 
-You can now let your AI go crazy with this circular feature: create a modified `justfile`, use it to create a modified `baldwin.sh`, use the modified `baldwin.sh` to create a new proejct folder with a modified `justfile` that created the `baldwin.sh`. What came first? The chicken or the egg? 
+You can now let your AI go crazy with this circular feature: create a modified `justfile`, use it to create a modified `baldwin.sh`, use the modified `baldwin.sh` to create a new proejct folder with a modified `justfile` that created the `baldwin.sh`. What came first? The chicken or the egg?
 
 ## Frequently Asked Questions (FAQ)
 

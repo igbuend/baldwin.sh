@@ -13,6 +13,7 @@ ENV USER_NAME=baldwin
 # xargs -a <(awk '! /^ *(#|$)/' "$packagelist") -r -- sudo apt-get -y install --no-install-recommends
 RUN export DEBIAN_FRONTEND=noninteractive \
     && apt-get update && apt-get -y install --no-install-recommends \
+      7zip \
       asciinema \
       bats \
       bc \
@@ -41,7 +42,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
       net-tools \
       nodejs \
       npm \
-      p7zip-rar \
       passt \
       pipx \
       pigz \

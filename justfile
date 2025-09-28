@@ -255,7 +255,7 @@ upgrade:
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # Analyses technology with AppInspector tool over sources in $PWD/src/
-appinspector: 
+appinspector:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
@@ -264,7 +264,7 @@ appinspector:
     appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [02/06] Ran appinspector and created HTML output."
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output"
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/06] Ran appinspector and created TXT output."
-    rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif || true && echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder." 
+    rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif || true && echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
   else
     echo "  !!! The source code folder is empty. Please unpack the sources with 'just unpack'."
@@ -426,6 +426,7 @@ unpack:
   # TODO it might just be possible that you received multiple different zip formats. Will unpack fine, but counter actions wrong.
   # TODO better would be to unpack each archive in a subfolder of 'src', maybe subfolder = archive file name
   # TODO check if archives not password protected / are not corrupted
+  mkdir -p "$JUST_HOME/{src,input}" && mkdir -p "$JUST_HOME"/output/unpack && echo "    [01/03] Created work folders."
   found=false
   for file in "$JUST_HOME"/input/*.{zip,7z,tar.bz}; do
     if [ -e "$file" ]; then
@@ -434,20 +435,20 @@ unpack:
     fi
   done
   if "$found"; then
-    echo "    [01/03] Found source code archives in '/input' folder."
-    mkdir -p "$JUST_HOME/src" && echo "    [02/03] Created work folders."
+    echo "    [02/03] Found source code archives in '/input' folder."
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
-      unzip "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/ &>/dev/null
+      unzip -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/ &>/dev/null
       echo "    [03/03] Unzipped ZIP archives to '/src' folder ."
     fi
-    if ls "$PWD"/input/*.7z 1> /dev/null 2>&1; then
-      7z e "$PWD"/input/*.7z -o"$PWD"/src/
+    if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
+      7z e "$JUST_HOME"/input/*.7z -o"$JUST_HOME"/src/
       echo "    [03/03] Unzipped 7Z archives to '/src' folder ."
     fi
-    if ls "$PWD"/input/*.tar.bz2 1> /dev/null 2>&1; then
-      tar -xjf "$PWD"/input/*.tar.bz2 -C "$PWD"/src/
+    if ls "$JUST_HOME"/input/*.tar.bz2 1> /dev/null 2>&1; then
+      tar -xjf "$JUST_HOME"/input/*.tar.bz2 -C "$JUST_HOME"/src/
       echo "    [03/03] Unzipped TAR.BZ2 archives to '/src' folder ."
     fi
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && tree -d -L 4 "$JUST_HOME"/src > "$JUST_HOME"/output/unpack/"$dt"_unpack_tree.txt
   else
     echo "  !!! No Source code archives (ZIP, 7Z or TAR.BZ2) found in '/input' folder."
   fi
