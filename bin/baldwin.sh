@@ -79,6 +79,7 @@ else
 fi
 
 cat > "$realpath_folder"/justfile << 'EOF'
+#!/usr/bin/env just --justfile
 # shellcheck disable=SC1083,SC2148
 alias checksum := sha256
 alias inspect := appinspector
