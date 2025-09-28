@@ -426,7 +426,7 @@ unpack:
   # TODO it might just be possible that you received multiple different zip formats. Will unpack fine, but counter actions wrong.
   # TODO better would be to unpack each archive in a subfolder of 'src', maybe subfolder = archive file name
   # TODO check if archives not password protected / are not corrupted
-  mkdir -p "$JUST_HOME/{src,input}" && mkdir -p "$JUST_HOME"/output/unpack && echo "    [01/03] Created work folders."
+  mkdir -p "$JUST_HOME"/{src,input} && mkdir -p "$JUST_HOME"/output/unpack && echo "    [01/03] Created work folders."
   found=false
   for file in "$JUST_HOME"/input/*.{zip,7z,tar.bz}; do
     if [ -e "$file" ]; then
