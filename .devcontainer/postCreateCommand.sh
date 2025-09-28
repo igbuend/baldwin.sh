@@ -6,6 +6,8 @@ export USERNAME=baldwin
 export USER_UID=$(id -u)
 export USER_GID=$(id -g)
 
+echo "127.0.1.1 malpertus" | sudo tee -a /etc/hosts > /dev/null
+
 sudo chown -R "$(whoami)":"$(whoami)" "$JUST_HOME"
 
 # start docker

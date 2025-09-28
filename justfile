@@ -14,7 +14,7 @@ backup:
   #!/usr/bin/env bash
   set -euxo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/{backup,tmp} && tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && echo "    [01/03] Created needed directories."
+  mkdir -p "$JUST_HOME"/{backup,tmp} && tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && echo "    [01/03] Created work folders."
   tar -jcf "$tempfolder"/"$dt"_backup.tar.bz2 --exclude="$JUST_HOME/backup" --exclude="$tempfolder" "$JUST_HOME"
   cp "$tempfolder"/"$dt"_backup.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_backup.tar.bz2
   rm -rf "$tempfolder" || true
@@ -24,7 +24,7 @@ baldwin:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME/bin" && mkdir -p "$JUST_HOME"/output/baldwin.sh && echo "    [01/05] Created needed directories."
+  mkdir -p "$JUST_HOME/bin" && mkdir -p "$JUST_HOME"/output/baldwin.sh && echo "    [01/05] Created work folders."
   cat << 'EOF' > "$JUST_HOME"/bin/baldwin.sh
   #!/usr/bin/env bash
 
@@ -127,7 +127,7 @@ output:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'output' directory."
-  mkdir -p "$JUST_HOME"/{tmp,backup,output} && tempfolder=$(mktemp -d "$PWD/tmp/XXXXXX") && echo "    [01/04] Created needed directories."
+  mkdir -p "$JUST_HOME"/{tmp,backup,output} && tempfolder=$(mktemp -d "$PWD/tmp/XXXXXX") && echo "    [01/04] Created work folders."
   cd "$JUST_HOME" && tar -jcf "$tempfolder"/"$dt"_output.tar.bz2 output && echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$dt"_output.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_output.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
   rm -rf "$tempfolder" &>/dev/null || true && echo "    [04/04] Removed temporary folder."
@@ -138,7 +138,7 @@ input:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'input' folder."
-  mkdir -p "$JUST_HOME"/{backup,input,tmp} && echo "    [01/04] Created needed directories."
+  mkdir -p "$JUST_HOME"/{backup,input,tmp} && echo "    [01/04] Created work folders."
   tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX")
   cd "$JUST_HOME" && tar -jcf "$tempfolder"/"$dt"_input.tar.bz2 input && echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$dt"_input.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_input.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
@@ -150,7 +150,7 @@ clean:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start emptying all folders (not including 'data' and 'backup')."
-  mkdir -p "$JUST_HOME"/{input,logs,notes,output,report,src,tmp} && echo "    [01/08] Created needed directories."
+  mkdir -p "$JUST_HOME"/{input,logs,notes,output,report,src,tmp} && echo "    [01/08] Created work folders."
   find "$JUST_HOME"/input -mindepth 1 -delete &>/dev/null && echo "    [02/08] Deleted all files in $JUST_HOME/input/."
   find "$JUST_HOME"/notes -mindepth 1 -delete &>/dev/null && echo "    [03/08] Deleted all files in $JUST_HOME/notes/."
   find "$JUST_HOME"/output -mindepth 1 -delete &>/dev/null && echo "    [04/08] Deleted all files in $JUST_HOME/output/."
@@ -164,7 +164,7 @@ empty:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start emptying all folders (including 'data' and 'backup')."
-  mkdir -p "$JUST_HOME"/{backup,data,input,logs,notes,output,report,src,tmp} && echo "    [01/10] Created needed directories."
+  mkdir -p "$JUST_HOME"/{backup,data,input,logs,notes,output,report,src,tmp} && echo "    [01/10] Created work folders."
   find "$JUST_HOME"/backup -mindepth 1 -delete &>/dev/null && echo "    [02/10] Deleted all files in $JUST_HOME/backup/."
   find "$JUST_HOME"/data -mindepth 1 -delete &>/dev/null && echo "    [03/10] Deleted all files in $JUST_HOME/data/."
   find "$JUST_HOME"/input -mindepth 1 -delete &>/dev/null && echo "    [04/10] Deleted all files in $JUST_HOME/input/."
@@ -259,13 +259,15 @@ appinspector:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/appinspector && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
-    appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Verbose --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ && echo "    [02/04] Ran appinspector and created HTML output."
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_json.log --log-file-level Verbose --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.json --output-file-format json --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/04] Ran appinspector and created JSON output"
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/04] Ran appinspector and created TXT output."
+    appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [02/06] Ran appinspector and created HTML output."
+    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output"
+    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/06] Ran appinspector and created TXT output."
+    rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif || true && echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder." 
+    cp "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! The source code folder is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # Show Lines of Code (LOC) for sources in src/
@@ -281,7 +283,7 @@ cloc:
   if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
     echo "## Lines of Code (LOC) in 'src/' folder:" > "$PWD"/output/cloc/"$dt"_cloc.txt
     echo ""  >> "$PWD"/output/cloc/"$dt"_cloc.txt
-    cloc "$PWD"/src/ --ignored="$PWD"/output/cloc/"$dt"_cloc_ignored.txt  >> "$PWD"/output/cloc/"$dt"_cloc.txt
+    cloc "$PWD"/src/ --timeout 120 --ignored="$PWD"/output/cloc/"$dt"_cloc_ignored.txt  >> "$PWD"/output/cloc/"$dt"_cloc.txt
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
@@ -291,22 +293,22 @@ depscan:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
-  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$PWD"/tmp/ && echo "    [01/07] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$PWD"/tmp/ && echo "    [01/07] Created work folders."
   if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
     depscan --no-banner --sync --profile research --explain --deep --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" &>/dev/null && echo "    [02/07] Ran depscan with output in temporary folder."
     cd "$JUST_HOME"
-    cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to 'output/depscan' folder."
+    cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
       mv -T $TEMP_FOLDER $dt && echo "    [04/07] Renamed output folder to current (at start) date-time."
     fi
-    touch "$JUST_HOME"/src/bom.json && mv "$JUST_HOME"/src/bom.json "$JUST_HOME"/output/depscan/"$dt"/ || true && echo "    [05/07] Moved bom.json to report folder."
-    touch "$JUST_HOME"/src/bom.vdr.json && mv "$JUST_HOME"/src/bom.vdr.json "$JUST_HOME"/output/depscan/"$dt"/ || true && echo "    [06/07] Moved bom.vdr.json to report folder."
+    touch "$JUST_HOME"/src/bom.json && mv "$JUST_HOME"/src/bom.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [05/07] Moved bom.json to report folder."
+    touch "$JUST_HOME"/src/bom.vdr.json && mv "$JUST_HOME"/src/bom.vdr.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [06/07] Moved bom.vdr.json to report folder."
     rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! The source code directory '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # checks cloud config (using KICS) over sources in $PWD:/src/
@@ -316,25 +318,25 @@ kics:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
   USER_UID=$(id -u)
   USER_GID=$(id -g)
-  mkdir -p "$JUST_HOME"/output/{kics,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/07] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/{kics,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/07] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     if docker info > /dev/null 2>&1; then
       docker run -t -u "$USER_UID":"$USER_GID" -v "$PWD"/src/:/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
       echo "    [02/07] Ran KICS with output in temporary folder."
-      cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to 'output/kics' folder."
-      rm -f "$JUST_HOME"/output/sarif/*kics.sarif || true && echo "    [04/07] Removed earlier KICS SARIF output from 'output/sarif' folder."
-      cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$dt"_kics.sarif || true && echo "    [05/07] Copied SARIF results to 'output/sarif'."
+      cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
+      rm -f "$JUST_HOME"/output/sarif/*kics.sarif && echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
+      cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$dt"_kics.sarif && echo "    [05/07] Copied SARIF results to '/output/sarif'."
       if cd "$JUST_HOME"/output/kics/; then
         mv -T $TEMP_FOLDER $dt && echo "    [06/07] Renamed output folder to current (at start) date-time."
       fi
-      rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
+      rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 && echo "    [07/07] Removed temporary folder."
     else
       echo "  !!! KICS uses docker, and it isn't running - please start docker and try again!"
     fi
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # runs Opengrep over sources in "$PWD"/src/
@@ -342,10 +344,11 @@ opengrep:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/02] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/03] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [02/03] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules --sarif-output="$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif --json-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.json --text-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt "$JUST_HOME"/src &>/dev/null
-    echo "    [02/02] Ran opengrep and created SARIF, JSON and TXT output files."
+    echo "    [03/03] Ran opengrep and created SARIF, JSON and TXT output files."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
@@ -355,7 +358,7 @@ osv-scanner:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     osv-scanner --call-analysis --no-ignore --format table --recursive "$JUST_HOME"/src/ > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.txt &>/dev/null || true
     echo "    [02/04] Ran osv-scanner and created TXT results."
@@ -373,23 +376,23 @@ sha256:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/sha256 && mkdir -p "$JUST_HOME"/input/  && echo "    [01/04] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/sha256 && mkdir -p "$JUST_HOME"/input/  && echo "    [01/04] Created work folders."
   echo "## List of files in 'input' folder:" > "$JUST_HOME"/output/sha256/"$dt"_sha256.txt
   # shellcheck disable=SC2129 # fix later
   echo ""  >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt
-  ls -al "$JUST_HOME"/input/ >> "$PWD"/output/sha256/"$dt"_sha256.txt  && echo "    [02/04] Created list of all files in 'input' directory."
+  ls -al "$JUST_HOME"/input/ >> "$PWD"/output/sha256/"$dt"_sha256.txt  && echo "    [02/04] Created list of all files in '/input' folder."
   echo ""  >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt
-  echo "SHA256 checksums of ZIP/7Z archives in 'input' folder:" >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt
+  echo "SHA256 checksums of ZIP/7Z archives in '/input' folder:" >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt
   echo ""  >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt
   if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
     sha256sum "$JUST_HOME"/input/*.zip >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt && echo "    [03/04] Created SHA256 checksum of ZIP archives."
   else
-    echo "    [03/04] ZIP archives not present in 'input' folder."
+    echo "    [03/04] ZIP archives not present in '/input' folder."
   fi
   if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
     sha256sum "$JUST_HOME"/input/*.7z >> "$JUST_HOME"/output/sha256/"$dt"_sha256.txt && echo "    [04/04] Created SHA256 checksum of 7Z archives."
   else
-    echo "    [04/04] 7Z archives not present in 'input' folder."
+    echo "    [04/04] 7Z archives not present in '/input' folder."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # search for secrets with TruffleHog
@@ -399,7 +402,7 @@ trufflehog:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   USER_UID=$(id -u)
   USER_GID=$(id -g)
-  mkdir -p "$JUST_HOME"/output/trufflehog && echo "    [01/03] Created needed directories."
+  mkdir -p "$JUST_HOME"/output/trufflehog && echo "    [01/03] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
       docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.txt
@@ -412,7 +415,7 @@ trufflehog:
       echo "  !!! TruffleHog uses docker, and it isn't running - please start docker and try again!"
     fi
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # Unzips source archive(s) into $PWD/src/
@@ -431,21 +434,21 @@ unpack:
     fi
   done
   if "$found"; then
-    echo "    [01/03] Found source code archives in 'input' folder."
-    mkdir -p "$JUST_HOME/src" && echo "    [02/03] Created needed directories."
+    echo "    [01/03] Found source code archives in '/input' folder."
+    mkdir -p "$JUST_HOME/src" && echo "    [02/03] Created work folders."
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
       unzip "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/ &>/dev/null
-      echo "    [03/03] Unzipped ZIP archives to 'src' folder ."
+      echo "    [03/03] Unzipped ZIP archives to '/src' folder ."
     fi
     if ls "$PWD"/input/*.7z 1> /dev/null 2>&1; then
       7z e "$PWD"/input/*.7z -o"$PWD"/src/
-      echo "    [03/03] Unzipped 7Z archives to 'src' folder ."
+      echo "    [03/03] Unzipped 7Z archives to '/src' folder ."
     fi
     if ls "$PWD"/input/*.tar.bz2 1> /dev/null 2>&1; then
       tar -xjf "$PWD"/input/*.tar.bz2 -C "$PWD"/src/
-      echo "    [03/03] Unzipped TAR.BZ2 archives to 'src' folder ."
+      echo "    [03/03] Unzipped TAR.BZ2 archives to '/src' folder ."
     fi
   else
-    echo "  !!! No Source code archives (ZIP, 7Z or TAR.BZ2) found in 'input' folder."
+    echo "  !!! No Source code archives (ZIP, 7Z or TAR.BZ2) found in '/input' folder."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
