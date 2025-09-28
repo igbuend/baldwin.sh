@@ -1,4 +1,5 @@
 # baldwin.sh
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
@@ -6,7 +7,7 @@ A dedicated Dev Container for your Secure Code Reviews!
 
 Create a folder for your project. Put the source code archive into the "/input" folder. **baldwin.sh** takes care of the rest!
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K81JFF22)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/igbuend)
 
 ## Features
 
@@ -26,7 +27,7 @@ The following tasks are automated, thanks to the [Justfile command runner](https
 
 All this is done in a dedicated folder, with a specific structure. **baldwin.sh" ensures that software is updated when needed, and results are consistent. It is easy to share findings with your customer or with colleages.
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K81JFF22)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/igbuend)
 
 ## Introduction
 
@@ -198,7 +199,7 @@ Malpertus is one of the myriad of spellings of the name of the lair of [**Reynar
 - v1.0 More consistent handling of errors/output and better documentation
 - v2.0 Automated vulnerability report of all output
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/K3K81JFF22)
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/igbuend)
 
 ## Licensing
 
