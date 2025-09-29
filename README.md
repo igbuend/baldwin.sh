@@ -170,7 +170,7 @@ just --list
 
 ## Create your Personalised baldwin.sh
 
-If you like to thinker with the `justfile` to use other tools, you might want to create your personalised `baldwin.sh` too.
+If you like to tinker with the `justfile` to use other tools, you might want to create your personalised `baldwin.sh` too.
 
 Edit the `justfile`, make certain it works, and create the modified `baldwin.sh` in the `baldwin folder:
 
