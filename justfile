@@ -261,7 +261,7 @@ appinspector:
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
-  if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [02/06] Ran appinspector and created HTML output."
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output"
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/06] Ran appinspector and created TXT output."
@@ -295,7 +295,7 @@ depscan:
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
   mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$PWD"/tmp/ && echo "    [01/07] Created work folders."
-  if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
