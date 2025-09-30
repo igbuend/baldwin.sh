@@ -1,3 +1,7 @@
+<p align="center" width="100%">
+    <img width="50%" src="baldwin.sh.png" alt="baldwin.sh logo" title="baldwin.sh logo">
+</p>
+
 # baldwin.sh
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
@@ -75,7 +79,7 @@ The above will run a number of typical tasks that are done at the initial stages
 Every task can also be run individually, if needed. A list of pre-programmed tasks can be displayed with:
 
 ```bash
-just list
+just --list
 ```
 
 You can create a backup of the complete project folder with:
@@ -201,6 +205,10 @@ All tools can be run individually too, if needed. Do the following to list all o
 ```bash
 just --list
 ```
+
+## Overview of "just" Commands
+
+
 
 ## Create your Personalized baldwin.sh
 
