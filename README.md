@@ -3,7 +3,25 @@
 [![made-with-bash](https://img.shields.io/badge/Made%20with-Bash-1f425f.svg)](https://www.gnu.org/software/bash/)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://github.com/pre-commit/pre-commit)
 
-A dedicated Dev Container for your Secure Code Reviews!
+A dedicated Dev Container for your Secure Code Reviews! Make your reviews consistent, repeatable, efficient and auditable.
+
+If you ever found yourself
+
+- franticly pressing the arrow-up key to desperately find the correct way to launch a tool
+- panicking because one hour before the report deadline you discovered that you forgot to update your toolset
+- cursing at installation instructions that never work on any sane operating system
+- getting angry when dependencies of one tool never agree with those of another tool
+- getting nauseated when tool devs "upgrade" to a shiny new dependency manager used only by two donkeys in another universe
+- having a customer demanding (6 months after the project) what version of a tool you used
+
+then **baldwin.sh** might be a good solution.
+
+- it logs all your manual shell interactions so you know what you did last summer
+- it install and updates your tools, and logs all versions in use
+- it collects evidence for the report (e.g. SHA256 hash of received code)
+- it runs one tool, or all tools and preserves old and new output
+- it back-ups the project folder containing sources under review, notes, output from tools, logs,..
+- it back-ups the folder with the output of all tools (for your demanding customer, or for audit reasons)
 
 Create a folder for your project. Put the source code archive into the "/input" folder. **baldwin.sh** takes care of the rest!
 
@@ -11,11 +29,11 @@ Create a folder for your project. Put the source code archive into the "/input" 
 
 ## Features
 
-The following tasks are automated, thanks to the [Justfile command runner](https://github.com/casey/just):
+The following tasks are automated, thanks to the [Just command runner](https://github.com/casey/just):
 
 - **code handover**: creates a checksum (so you can proof which code you reviewed), unzips the archive, calculates the lines of code (LOC) and displays the structure of the archive.
 
-- **technology review**: reports on technologies used and security sensitive parts of the code, like authentication, authorization, logging, ... using [Microsoft Applicatop Inspector](https://github.com/microsoft/ApplicationInspector).
+- **technology review**: reports on technologies used and security sensitive parts of the code, like authentication, authorization, logging, ... using [Microsoft Application Inspector](https://github.com/microsoft/ApplicationInspector).
 
 - **static code analysis**: performs a static analysis using [OpenGrep](https://github.com/opengrep/opengrep) and reports on detected vulnerabilities.
 
@@ -25,11 +43,27 @@ The following tasks are automated, thanks to the [Justfile command runner](https
 
 - **search for hardcoded secrets**: reports on hardcoded secrets in the code using [TruffleHog](https://github.com/trufflesecurity/trufflehog).
 
-All this is done in a dedicated folder, with a specific structure. **baldwin.sh" ensures that software is updated when needed, and results are consistent. It is easy to share findings with your customer or with colleages.
+All this is done in a dedicated folder, with a specific structure. **baldwin.sh" ensures that software is updated when needed, and results are consistent. It is easy to share findings with your customer or with colleagues.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/igbuend)
 
-## Introduction
+## Folder structure
+
+The table below documents the folder structure of a typical **baldwin.sh** project.
+
+| Folder | Summary |
+|---|---|
+| `backup` | Used for storing full backups of the project or backups of just the tools output. |
+| `data` | Contains data used by the tools, like OpenGrep rules. |
+| `input` | The folder where you place the source code to be analyzed. I also put there any discussions relevant to the scope. |
+| `logs` | Contains logs from various tools and scripts. |
+| `notes` | A place to store your notes during the code review. |
+| `output` | Contains the output from all the analysis tools. |
+| `report` | Intended for the final security report. |
+| `src` | Contains source code to be reviewed for security. |
+| `tmp` | Used for temporary files. |
+
+## Overview
 
 **baldwin.sh** makes the initial discovery part of a secure code review efficient, consistent, auditable and repeatable. Once the dev container has started, enter the following command and the magic will happen:
 
@@ -58,7 +92,7 @@ just output
 ```
 This will create a backup archive of only the contents of the `output` folder in the `backup` folder.
 
-Note: rather than using a Dev Container, it is possible (curently Ubuntu only) to install and run it with a script.
+Note: rather than using a Dev Container, it is possible (currently Ubuntu only) to install and run it with a script.
 
 ## Prerequisites and Quickstart
 
@@ -168,9 +202,9 @@ All tools can be run individually too, if needed. Do the following to list all o
 just --list
 ```
 
-## Create your Personalised baldwin.sh
+## Create your Personalized baldwin.sh
 
-If you like to tinker with the `justfile` to use other tools, you might want to create your personalised `baldwin.sh` too.
+If you like to tinker with the `justfile` to use other tools, you might want to create your personalized `baldwin.sh` too.
 
 Edit the `justfile`, make certain it works, and create the modified `baldwin.sh` in the `baldwin folder:
 
@@ -180,7 +214,7 @@ just baldwin
 
 Just copy the `bin/baldwin.sh` to `/usr/local/bin` and it is ready to use.
 
-You can now let your AI go crazy with this circular feature: create a modified `justfile`, use it to create a modified `baldwin.sh`, use the modified `baldwin.sh` to create a new proejct folder with a modified `justfile` that created the `baldwin.sh`. What came first? The chicken or the egg?
+You can now let your AI go crazy with this circular feature: create a modified `justfile`, use it to create a modified `baldwin.sh`, use the modified `baldwin.sh` to create a new project folder with a modified `justfile` that created the `baldwin.sh`. What came first? The chicken or the egg?
 
 ## Frequently Asked Questions (FAQ)
 

@@ -23,12 +23,12 @@
 		"vscode": {
 			"extensions": [
 				"bierner.markdown-mermaid",
-				"Google.gemini-cli-vscode-ide-companion",
 				"mads-hartmann.bash-ide-vscode",
 				"MS-SarifVSCode.sarif-viewer",
 				"skellock.just",
 				"timonwong.shellcheck",
-				"vsce-toolroom.vscode-beautify"
+				"vsce-toolroom.vscode-beautify",
+				"google.gemini-cli-vscode-ide-companion"
 			],
 			"settings": {
 				"files.eol": "auto",
