@@ -21,7 +21,7 @@ If you ever found yourself
 then **baldwin.sh** might be a good solution.
 
 - it logs all your manual shell interactions so you know what you did last summer
-- it install and updates your tools, and logs all versions in use
+- it installs and updates your tools, and logs all versions in use
 - it collects evidence for the report (e.g. SHA256 hash of received code)
 - it runs one tool, or all tools and preserves old and new output
 - it back-ups the project folder containing sources under review, notes, output from tools, logs,..
