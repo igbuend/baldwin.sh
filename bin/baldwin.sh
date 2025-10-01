@@ -91,7 +91,7 @@ set dotenv-load := true
 # default, just list recipes
 default:
   @just --list
-# creates a backup of everything in $PWD/backup
+# creates a backup of everything in '/backup'
 backup:
   #!/usr/bin/env bash
   set -euxo pipefail
@@ -101,7 +101,7 @@ backup:
   cp "$tempfolder"/"$dt"_backup.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_backup.tar.bz2
   rm -rf "$tempfolder" || true
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Creates "baldwin.sh" from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
+# Creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
 baldwin:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -336,13 +336,13 @@ upgrade:
     echo "Upgrade uses docker, and it isn't running - please start docker and try again!"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Analyses technology with AppInspector tool over sources in $PWD/src/
+# Analyses technology with AppInspector tool over sources in '/src'
 appinspector:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
-  if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [02/06] Ran appinspector and created HTML output."
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output"
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/06] Ran appinspector and created TXT output."
@@ -352,31 +352,28 @@ appinspector:
     echo "  !!! The source code folder is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Show Lines of Code (LOC) for sources in src/
+# Show Lines of Code (LOC) for sources in '/src'
 cloc:
   #!/usr/bin/env bash
   set -euo pipefail
-  HOST_NAME="$(hostname)" && progname="$(basename "$0")"
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
-  export dt
-  echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$PWD"/output/cloc
-  mkdir -p "$PWD"/src/
-  if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
-    echo "## Lines of Code (LOC) in 'src/' folder:" > "$PWD"/output/cloc/"$dt"_cloc.txt
-    echo ""  >> "$PWD"/output/cloc/"$dt"_cloc.txt
-    cloc "$PWD"/src/ --timeout 120 --ignored="$PWD"/output/cloc/"$dt"_cloc_ignored.txt  >> "$PWD"/output/cloc/"$dt"_cloc.txt
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start calculating LOC."
+  mkdir -p "$JUST_HOME"/output/cloc && mkdir -p "$JUST_HOME"/src/ && echo "    [01/02] Created work folders."
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    echo "## Lines of Code (LOC) in 'src/' folder:" > "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
+    echo ""  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
+    cloc "$JUST_HOME"/src/ --timeout 120 --ignored="$JUST_HOME"/output/cloc/"$dt"_cloc_ignored.txt  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
+    echo "    [02/02] Calculated LOC."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# performs SCA with OWASP depscan over sources in $PWD:/src/
+# performs SCA with OWASP depscan over sources in '/src'
 depscan:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
-  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$PWD"/tmp/ && echo "    [01/07] Created work folders."
-  if [ -d "$PWD/src/" ] && [ "$(ls -A "$PWD/src/")" ]; then
+  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/07] Created work folders."
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
@@ -393,7 +390,7 @@ depscan:
     echo "  !!! The source code directory '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# checks cloud config (using KICS) over sources in $PWD:/src/
+# checks cloud config (using KICS) over sources in '/src'
 kics:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -421,7 +418,7 @@ kics:
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# runs Opengrep over sources in "$PWD"/src/
+# runs Opengrep over sources in '/src'
 opengrep:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -435,7 +432,7 @@ opengrep:
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Runs Google OSV scanner for SCA over sources in "$PWD"/src/
+# Runs Google OSV scanner for SCA over sources in '/src'
 osv-scanner:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -453,7 +450,7 @@ osv-scanner:
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Calculate SHA256 hash of the input source archives
+# Calculates SHA256 hash of the input source archives
 sha256:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -500,7 +497,7 @@ trufflehog:
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Unzips source archive(s) into $PWD/src/
+# Unzips source archive(s) into '/src'
 unpack:
   #!/usr/bin/env bash
   set -euo pipefail

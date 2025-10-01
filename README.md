@@ -208,7 +208,7 @@ just --list
 
 ## Flowchart of "just doit"
 
-The following shows what happens when you execute `just doit`.
+The following chart shows what happens when you execute `just doit`.
 
 ```mermaid
 graph TD
