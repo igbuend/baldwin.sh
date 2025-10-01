@@ -208,7 +208,27 @@ just --list
 
 ## Overview of "just" Commands
 
-
+| Command | Description |
+| :--- | :--- |
+| `backup` | Creates a backup of everything in `/backup` |
+| `baldwin` | Creates "baldwin.sh" from the current "justfile" (currently Ubuntu only). Warning: overwrites existing! |
+| `output` | Creates a backup of only the output folder in `/backup` |
+| `input` | Creates a backup of only the input folder in `/backup` |
+| `clean` | Empties all folders except /data and /backup folders |
+| `empty` | Empties all folders including /data and /backup folders |
+| `do_fresh` | Runs everything, after upgrading Ubuntu and all tools |
+| `doit` | Runs everything, without upgrading Ubuntu or other tools |
+| `gemini` | Opens Google gemini-cli |
+| `upgrade` | Upgrades Ubuntu and all seperately installed tools |
+| `appinspector` | Analyses technology with AppInspector tool over sources in `/src` |
+| `cloc` | Counts Lines of Code (LOC) for sources in `/src` |
+| `depscan` | performs SCA with OWASP depscan over sources in `/src` |
+| `kics` | Checks cloud config (using KICS) over sources in `/src` |
+| `opengrep` | Runs Opengrep over sources in `/src` |
+| `osv-scanner` | Runs Google OSV scanner for SCA over sources in `/src` |
+| `sha256` | Calculates SHA256 hash of source archives in `/input` |
+| `trufflehog` | Searches for secrets with TruffleHog |
+| `unpack` | Unzips source archive(s) from `/input` into `/src` |
 
 ## Create your Personalized baldwin.sh
 
