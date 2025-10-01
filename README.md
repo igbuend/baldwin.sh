@@ -158,6 +158,28 @@ sudo apt update
 sudo apt install just
 ```
 
+We need `dotnet` too:
+
+```bash
+sudo add-apt-repository ppa:dotnet/backports
+sudo apt-get -y install dotnet-sdk-9.0
+dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI
+export PATH=$PATH:/$HOME/.dotnet/tools # for depscan and sarif
+```
+
+Some other needed dependencies:
+
+```bash
+sudo apt install pipx
+pipx ensurepath
+pipx install owasp-depscan sarif-tools
+wget -q -O- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+. ~/.bashrc
+nvm install node
+pnpm setup
+pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
+```
+
 Get this code:
 
 ```bash
@@ -168,6 +190,7 @@ Conclude the installation as follows:
 
 ```bash
 cd baldwin.sh
+sudo apt install make
 ./configure
 make
 sudo make install
@@ -184,13 +207,13 @@ baldwin.sh --output ~/projects/myproject
 Copy the source code archive (to be reviewed) into the `input` folder, e.g. if your customer gave you a `sources.zip` archive do the following:
 
 ```bash
-cp sources.zip ~projects/myproject/input
+cp sources.zip ~/projects/myproject/input
 ```
 
 Now change into the project folder and install all needed tools:
 
 ```bash
-cd ~projects/myproject/
+cd ~/projects/myproject/
 just upgrade
 ```
 

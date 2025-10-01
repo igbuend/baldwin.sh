@@ -315,7 +315,7 @@ upgrade:
       fi
     fi
   fi
-  dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI
+  dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
   pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg

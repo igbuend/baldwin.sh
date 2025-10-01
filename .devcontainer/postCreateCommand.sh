@@ -96,7 +96,7 @@ fi
 # truffelhog gives error when trying to run as non-root docker :(
 printf -v dt '%(%Y-%m-%d %H:%M:%S)T\n' -1
 export dt
-export PATH=$PATH:/$HOME/.local/bin # for depscan and sarif
+export PATH=$PATH:/$HOME/.local/bin:/$HOME/.dotnet/tools # for depscan and sarif
 # shellcheck disable=SC2129 # fix later
 echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Checkmarx KICS version: $(docker run docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
