@@ -206,6 +206,25 @@ All tools can be run individually too, if needed. Do the following to list all o
 just --list
 ```
 
+## Flowchart of "just doit"
+
+The following shows what happens when you execute `just doit`.
+
+```mermaid
+graph TD
+    A[just doit] --> B(just sha256);
+    B --> C(just unpack);
+    C --> D(just cloc);
+    D --> E(just appinspector);
+    E --> F(just osv-scanner);
+    F --> G(just kics);
+    G --> H(just trufflehog);
+    H --> I(just opengrep);
+    I --> J(just depscan);
+```
+
+
+
 ## Overview of "just" Commands
 
 | Command | Description |
@@ -214,8 +233,8 @@ just --list
 | `baldwin` | Creates "baldwin.sh" from the current "justfile" (currently Ubuntu only). Warning: overwrites existing! |
 | `output` | Creates a backup of only the output folder in `/backup` |
 | `input` | Creates a backup of only the input folder in `/backup` |
-| `clean` | Empties all folders except /data and /backup folders |
-| `empty` | Empties all folders including /data and /backup folders |
+| `clean` | Empties all folders except `/data` and `/backup` folders |
+| `empty` | Empties all folders including `/data` and `/backup` folders |
 | `do_fresh` | Runs everything, after upgrading Ubuntu and all tools |
 | `doit` | Runs everything, without upgrading Ubuntu or other tools |
 | `gemini` | Opens Google gemini-cli |
