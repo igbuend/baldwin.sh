@@ -31,11 +31,11 @@ sudo chown -R "$(whoami)":"$(whoami)" "$HOME"/.local
 pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
 
 # shellcheck disable=SC2102
-pipx install owasp-depscan[all] sarif-tools
+pipx install sarif-tools
 pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
-mkdir -p "$JUST_HOME"/logs/{dpkg,script}
+mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,script}
 mkdir -p "$JUST_HOME"/output/{appinspector,cloc,depscan,kics,opengrep,osv,sarif,sha256,unpack}
 
 # opengrep
@@ -103,7 +103,7 @@ export PATH=$PATH:/$HOME/.local/bin:/$HOME/.dotnet/tools # for depscan and sarif
 # shellcheck disable=SC2129 # fix later
 echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Checkmarx KICS version: $(docker run docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "OWASP depscan version: $(depscan --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
+echo "OWASP dep-scan version: $(docker run --quiet --rm ghcr.io/owasp-dep-scan/dep-scan depscan --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Google osv-scanner version: $(osv-scanner --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log

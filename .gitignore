@@ -61,6 +61,7 @@ output/
 notes/
 report/
 src/
+tmp/
 
 # Sources
 src/
