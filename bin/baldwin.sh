@@ -77,7 +77,7 @@ else
     die "Output folder '$output_folder' is not writable."
   fi
 fi
-
+#shellcheck disable=SC1039
 cat > "$realpath_folder"/justfile << 'EOF'
 #!/usr/bin/env just --justfile
 # shellcheck disable=SC1083,SC2148
@@ -107,6 +107,7 @@ baldwin:
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME/bin" && mkdir -p "$JUST_HOME"/output/baldwin.sh && echo "    [01/05] Created work folders."
+  # shellcheck disable=SC1009,SC1073
   cat << 'EOF' > "$JUST_HOME"/bin/baldwin.sh
   #!/usr/bin/env bash
 
@@ -187,7 +188,7 @@ baldwin:
       die "Output folder '$output_folder' is not writable."
     fi
   fi
-
+  #shellcheck disable=SC1039
   EOF
   echo "cat > \"\$realpath_folder\"/justfile << 'EOF'" >> "$JUST_HOME"/bin/baldwin.sh
   cat < "$JUST_HOME"/justfile >> "$JUST_HOME"/bin/baldwin.sh

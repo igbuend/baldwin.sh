@@ -3,8 +3,10 @@ export SHELL="/bin/bash"
 export DOTNET_CLI_TELEMETRY_OPTOUT="1"
 export JUST_HOME="$PWD"
 export USERNAME=baldwin
-export USER_UID=$(id -u)
-export USER_GID=$(id -g)
+export USER_UID=""
+USER_UID=$(id -u)
+export USER_GID=""
+USER_GID=$(id -g)
 
 echo "127.0.1.1 malpertus" | sudo tee -a /etc/hosts > /dev/null
 
