@@ -54,15 +54,15 @@ Makefile
 
 # Secrets
 backup/
-deliverables/
+data/
+input/
 logs/
 output/
 notes/
-input/
-sarif/
+report/
 src/
 
-# Scratchpad files
+# Sources
 src/
 
 # Environments
