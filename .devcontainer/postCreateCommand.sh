@@ -30,7 +30,8 @@ sudo chown -R "$(whoami)":"$(whoami)" "$HOME"/.local
 
 pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
 
-pipx install owasp-depscan sarif-tools
+# shellcheck disable=SC2102
+pipx install owasp-depscan[all] sarif-tools
 pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
@@ -109,7 +110,7 @@ echo "Google osv-scanner version: $(osv-scanner --version | head -n 1)" >> "$JUS
 # echo "Trufflesecurity truffelhog version: $(docker run -u "$USER_UID":"$USER_GID" docker.io/trufflesecurity/trufflehog:latest --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Trufflesecurity truffelhog version: $(docker run docker.io/trufflesecurity/trufflehog:latest --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
+dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 
 # implement terminal input logging
 # shellcheck disable=SC2016

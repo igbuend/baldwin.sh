@@ -292,12 +292,12 @@ depscan:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
-  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/07] Created work folders."
+  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$JUST_HOME"/tmp/ && mkdir -p "$JUST_HOME"/data/depscan/vdb_home && export VDB_HOME="$JUST_HOME"/data/depscan/vdb_home && echo "    [01/07] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
-    depscan --no-banner --sync --profile research --explain --deep --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" &>/dev/null && echo "    [02/07] Ran depscan with output in temporary folder."
+    depscan --no-banner --sync --cache --profile appsec --explain --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" &>/dev/null && echo "    [02/07] Ran depscan with output in temporary folder."
     cd "$JUST_HOME"
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
