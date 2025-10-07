@@ -4,7 +4,7 @@ FROM ubuntu:plucky
 # do not change USER_UID/USER_GUID since plenty of badly written docker/container software only works with UID 1000. Sigh.
 ENV USER_UID=1000
 ENV USER_GID=$USER_UID
-# docker uses "sh" by default, we want bash, since we need some buildin commands might not not be buildin with lesser shells.
+# docker uses "sh" by default, we want bash, since we need some buildin commands which might not not be buildin with lesser shells.
 SHELL ["/bin/bash", "-c"]
 # Please refer to the README.md. Baldwin is a character (the "ass" aka donkey) in the medieval fable of Reynard the Fox.
 ENV USER_NAME=baldwin

@@ -245,14 +245,15 @@ upgrade:
   echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-  echo "Google osv-scanner version: $(osv-scanner --version | head -n 1)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   if docker info > /dev/null 2>&1; then
     docker pull ghcr.io/owasp-dep-scan/dep-scan:latest
     echo "OWASP depscan version: $(docker run --quiet --rm ghcr.io/owasp-dep-scan/dep-scan depscan --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
     docker pull docker.io/checkmarx/kics:latest
-    echo "Checkmarx KICS version: $(docker run docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
+    echo "Checkmarx KICS version: $(docker run --quiet --rm docker.io/checkmarx/kics version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
+    docker pull ghcr.io/google/osv-scanner:latest
+    echo "Google osv-scanner version: $(docker run --quiet --rm ghcr.io/google/osv-scanner --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
     docker pull docker.io/trufflesecurity/trufflehog:latest
-    echo "Trufflesecurity truffelhog version: $(docker run docker.io/trufflesecurity/trufflehog:latest --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
+    echo "Trufflesecurity truffelhog version: $(docker run --quiet --rm docker.io/trufflesecurity/trufflehog --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   else
     echo "Upgrade uses docker, and it isn't running - please start docker and try again!"
   fi
@@ -363,9 +364,9 @@ osv-scanner:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    osv-scanner --call-analysis --no-ignore --format table --recursive "$JUST_HOME"/src/ > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.txt &>/dev/null || true
-    echo "    [02/04] Ran osv-scanner and created TXT results."
-    osv-scanner --call-analysis --no-ignore --format sarif --recursive "$JUST_HOME"/src/ > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif &>/dev/null || true
+    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --call-analysis --no-ignore --format markdown -r /src > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
+    echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
+    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --call-analysis --no-ignore --format sarif -r /src > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
     echo "    [03/04] Ran osv-scanner and created SARIF results."
     rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
     cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true

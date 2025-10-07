@@ -324,15 +324,17 @@ upgrade:
   echo "" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
   # shellcheck disable=SC2129 # fix later
   echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-  echo "OWASP depscan version: $(depscan --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-  echo "Google osv-scanner version: $(osv-scanner --version | head -n 1)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   if docker info > /dev/null 2>&1; then
+    docker pull ghcr.io/owasp-dep-scan/dep-scan:latest
+    echo "OWASP depscan version: $(docker run --quiet --rm ghcr.io/owasp-dep-scan/dep-scan depscan --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
     docker pull docker.io/checkmarx/kics:latest
-    echo "Checkmarx KICS version: $(docker run docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
+    echo "Checkmarx KICS version: $(docker run --quiet --rm docker.io/checkmarx/kics version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
+    docker pull ghcr.io/google/osv-scanner:latest
+    echo "Google osv-scanner version: $(docker run --quiet --rm ghcr.io/google/osv-scanner --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
     docker pull docker.io/trufflesecurity/trufflehog:latest
-    echo "Trufflesecurity truffelhog version: $(docker run docker.io/trufflesecurity/trufflehog:latest --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
+    echo "Trufflesecurity truffelhog version: $(docker run --quiet --rm docker.io/trufflesecurity/trufflehog --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   else
     echo "Upgrade uses docker, and it isn't running - please start docker and try again!"
   fi
@@ -373,12 +375,15 @@ depscan:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
-  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/07] Created work folders."
+  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$JUST_HOME"/tmp/ && mkdir -p "$JUST_HOME"/data/depscan/vdb_home && echo "    [01/07] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
-    cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
-    depscan --no-banner --sync --profile research --explain --deep --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" &>/dev/null && echo "    [02/07] Ran depscan with output in temporary folder."
+    cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources (to verify if same with docker)
+    docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
+      ghcr.io/owasp-dep-scan/dep-scan \
+      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
+    # depscan --no-banner --sync --cache --profile appsec --explain --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" &>/dev/null && echo "    [02/07] Ran depscan with output in temporary folder."
     cd "$JUST_HOME"
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
@@ -440,10 +445,10 @@ osv-scanner:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    osv-scanner --call-analysis --no-ignore --format table --recursive "$JUST_HOME"/src/ > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.txt &>/dev/null || true
-    echo "    [02/04] Ran osv-scanner and created TXT results."
-    osv-scanner --call-analysis --no-ignore --format sarif --recursive "$JUST_HOME"/src/ > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif &>/dev/null || true
-    echo "    [03/04] Ran osv-scanner and created JSON results."
+    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --call-analysis --no-ignore --format markdown -r /src > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
+    echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
+    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --call-analysis --no-ignore --format sarif -r /src > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
+    echo "    [03/04] Ran osv-scanner and created SARIF results."
     rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
     cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true
     echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
