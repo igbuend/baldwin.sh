@@ -302,7 +302,7 @@ depscan:
     docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
       ghcr.io/owasp-dep-scan/dep-scan \
       depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
-    # depscan --no-banner --sync --cache --profile appsec --explain --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" &>/dev/null && echo "    [02/07] Ran depscan with output in temporary folder."
+    # depscan --no-banner --sync --cache --profile appsec --explain --src "$JUST_HOME"/src/ --reports-dir "$TEMP_DIR" && echo "    [02/07] Ran depscan with output in temporary folder."
     cd "$JUST_HOME"
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
@@ -351,13 +351,13 @@ opengrep:
   mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/03] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [02/03] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --sarif-output="$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif --json-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.json --text-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt "$JUST_HOME"/src &>/dev/null
+    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --no-git-ignore --sarif-output="$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif --json-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.json --text-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt --experimental "$JUST_HOME"/src 
     echo "    [03/03] Ran opengrep and created SARIF, JSON and TXT output files."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Runs Google OSV scanner for SCA over sources in '/src'
+# Runs Google OSV scanner for SCA over sources in '/src' 
 osv-scanner:
   #!/usr/bin/env bash
   set -euo pipefail
