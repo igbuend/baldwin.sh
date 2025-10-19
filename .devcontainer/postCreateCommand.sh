@@ -35,7 +35,7 @@ pipx install sarif-tools
 pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
-mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,script}
+mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,script,todo}
 mkdir -p "$JUST_HOME"/output/{appinspector,cloc,depscan,kics,opengrep,osv,sarif,sha256,unpack}
 
 # opengrep
@@ -71,9 +71,9 @@ if cd "$JUST_HOME"/tmp; then
   fi
   sudo rm -rf ./todo.txt-cli || true
 fi
-mkdir -p "$JUST_HOME/data/todo"
-export TODO_DIR="$JUST_HOME/data/todo"
-echo 'export TODO_DIR="/workspaces/baldwin/data/todo"' >> "$HOME/.bashrc"
+mkdir -p "$JUST_HOME/logs/todo"
+export TODO_DIR="$JUST_HOME/logs/todo"
+echo 'export TODO_DIR="/workspaces/baldwin/logs/todo"' >> "$HOME/.bashrc"
 
 # jsluice
 go install github.com/BishopFox/jsluice/cmd/jsluice@latest
