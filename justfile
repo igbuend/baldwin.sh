@@ -10,13 +10,13 @@ set dotenv-load := true
 # default, just list recipes
 default:
   @just --list
-# creates a backup of everything in '/backup'
+# creates a backup of everything (except /data and /tmp) in '/backup'
 backup:
   #!/usr/bin/env bash
-  set -euxo pipefail
+  set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/{backup,tmp} && tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && echo "    [01/03] Created work folders."
-  tar -v --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_backup.tar.bz2 --exclude="$JUST_HOME/"backup --exclude="$JUST_HOME"/tmp "$JUST_HOME"
+  tar -v --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_backup.tar.bz2 --exclude="$JUST_HOME/"data --exclude="$JUST_HOME/"backup --exclude="$JUST_HOME"/tmp "$JUST_HOME"
   cp "$tempfolder"/"$dt"_backup.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_backup.tar.bz2
   rm -rf "$tempfolder" || true
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."

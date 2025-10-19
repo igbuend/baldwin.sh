@@ -15,6 +15,7 @@
 	"remoteUser": "baldwin",
 	"mounts": [
 		"source=${localWorkspaceFolderBasename}-src,target=${containerWorkspaceFolder}/src,type=volume",
+		"source=malpertus-data,target=${containerWorkspaceFolder}/data,type=volume",
 		"target=${containerWorkspaceFolder}/tmp,type=tmpfs"
 	],
   "features": {
