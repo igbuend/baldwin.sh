@@ -16,7 +16,7 @@ backup:
   set -euxo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/{backup,tmp} && tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && echo "    [01/03] Created work folders."
-  tar -jcf "$tempfolder"/"$dt"_backup.tar.bz2 --exclude="$JUST_HOME/backup" --exclude="$tempfolder" "$JUST_HOME"
+  tar -v --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_backup.tar.bz2 --exclude="$JUST_HOME/"backup --exclude="$JUST_HOME"/tmp "$JUST_HOME"
   cp "$tempfolder"/"$dt"_backup.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_backup.tar.bz2
   rm -rf "$tempfolder" || true
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
@@ -130,7 +130,7 @@ output:
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'output' directory."
   mkdir -p "$JUST_HOME"/{tmp,backup,output} && tempfolder=$(mktemp -d "$PWD/tmp/XXXXXX") && echo "    [01/04] Created work folders."
-  cd "$JUST_HOME" && tar -jcf "$tempfolder"/"$dt"_output.tar.bz2 output && echo "    [02/04] Created archive in temporary folder."
+  cd "$JUST_HOME" && tar --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_output.tar.bz2 output && echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$dt"_output.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_output.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
   rm -rf "$tempfolder" &>/dev/null || true && echo "    [04/04] Removed temporary folder."
   confirm="Backup of 'output' directory is "$JUST_HOME"/backup/"$dt"_output.tar.bz2."
@@ -142,7 +142,7 @@ input:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'input' folder."
   mkdir -p "$JUST_HOME"/{backup,input,tmp} && echo "    [01/04] Created work folders."
   tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX")
-  cd "$JUST_HOME" && tar -jcf "$tempfolder"/"$dt"_input.tar.bz2 input && echo "    [02/04] Created archive in temporary folder."
+  cd "$JUST_HOME" && tar tar --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_input.tar.bz2 input && echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$dt"_input.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_input.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
   rm -rf "$tempfolder" || true && echo "    [04/04] Removed temporary folder."
   confirm="Backup of 'input' directory is "$JUST_HOME"/backup/"$dt"_input.tar.bz2."

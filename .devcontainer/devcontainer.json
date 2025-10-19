@@ -14,7 +14,8 @@
 	],
 	"remoteUser": "baldwin",
 	"mounts": [
-		"source=${localWorkspaceFolderBasename}-src,target=${containerWorkspaceFolder}/src,type=volume"
+		"source=${localWorkspaceFolderBasename}-src,target=${containerWorkspaceFolder}/src,type=volume",
+		"target=${containerWorkspaceFolder}/tmp,type=tmpfs"
 	],
   "features": {
     "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {}
