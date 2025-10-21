@@ -343,7 +343,7 @@ kics:
   else
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
-  KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_kics.sarif )
+  touch "$JUST_HOME"/output/sarif/"$dt"_kics.sarif && KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_kics.sarif )
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
 # runs Opengrep over sources in '/src'
 opengrep:
@@ -365,10 +365,14 @@ osv-scanner:
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
-  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --call-analysis --no-ignore --format markdown -r /src > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
+  # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
+  if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+    mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
+  fi
+  if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
+    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src &>/dev/null > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
     echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
-    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --call-analysis --no-ignore --format sarif -r /src > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
+    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>/dev/null > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
     echo "    [03/04] Ran osv-scanner and created SARIF results."
     rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
     cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true
@@ -376,7 +380,11 @@ osv-scanner:
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+  touch "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif && OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif )
+  if [ -f "$JUST_HOME"/.gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+    mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OSV_RESULTS findings."
 # Calculates SHA256 hash of the input source archives
 sha256:
   #!/usr/bin/env bash
