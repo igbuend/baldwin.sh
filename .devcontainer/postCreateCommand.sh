@@ -42,6 +42,7 @@ mkdir -p "$JUST_HOME"/output/{appinspector,cloc,depscan,kics,opengrep,osv,sarif,
 # alternative for version: git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/opengrep/opengrep.git | tail --lines=1 | cut --delimiter='/' --fields=3
 og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
 if [[ -n "$og_version" ]]; then
+  # shellcheck disable=SC2154
   if [[ "$arch" == *arm* ]]; then
     sudo wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_aarch64
   else
@@ -77,14 +78,6 @@ echo 'export TODO_DIR="/workspaces/baldwin/logs/todo"' >> "$HOME/.bashrc"
 
 # jsluice
 go install github.com/BishopFox/jsluice/cmd/jsluice@latest
-
-# arch=$(uname -m)
-# if [[ "$arch" == *arm* ]]; then
-#  sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_arm64
-#else
-#  sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
-#fi
-#sudo chmod a+x /usr/local/bin/osv-scanner || true
 
 sudo dotnet workload update
 dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI

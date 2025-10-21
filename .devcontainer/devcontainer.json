@@ -26,6 +26,7 @@
 			"extensions": [
 				"bierner.markdown-mermaid",
 				"mads-hartmann.bash-ide-vscode",
+				"mechatroner.rainbow-csv",
 				"MS-SarifVSCode.sarif-viewer",
 				"skellock.just",
 				"timonwong.shellcheck",
