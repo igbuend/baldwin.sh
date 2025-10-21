@@ -405,17 +405,13 @@ trufflehog:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  USER_UID=$(id -u)
-  USER_GID=$(id -g)
   mkdir -p "$JUST_HOME"/output/trufflehog && echo "    [01/03] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.txt
-  #   docker run --rm -it -u "$USER_UID":"$USER_GID" -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.txt
-      echo "    [02/03] Succesfully ran TruffleHog and created report in TXT format"
+      docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --no-color filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.txt
+      echo "    [02/03] Succesfully ran TruffleHog and created report in TXT format."
       docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --json filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.json
-  #   docker run --rm -it -u "$USER_UID":"$USER_GID" -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --json filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.json
-      echo "    [03/03] Succesfully ran TruffleHog and created report in JSON format"
+      echo "    [03/03] Succesfully ran TruffleHog and created report in JSON format."
     else
       echo "  !!! TruffleHog uses docker, and it isn't running - please start docker and try again!"
     fi
