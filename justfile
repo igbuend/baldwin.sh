@@ -328,7 +328,7 @@ kics:
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     if docker info > /dev/null 2>&1; then
-      docker run -t -u "$USER_UID":"$USER_GID" -v "$PWD"/src/:/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
+      docker run -t -u "$USER_UID":"$USER_GID" -v "$PWD"/src/:/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
       echo "    [02/07] Ran KICS with output in temporary folder."
       cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
       rm -f "$JUST_HOME"/output/sarif/*kics.sarif && echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
@@ -343,7 +343,8 @@ kics:
   else
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+  KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_kics.sarif )
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
 # runs Opengrep over sources in '/src'
 opengrep:
   #!/usr/bin/env bash
