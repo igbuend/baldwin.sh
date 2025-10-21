@@ -324,6 +324,9 @@ kics:
   USER_UID=$(id -u)
   USER_GID=$(id -g)
   mkdir -p "$JUST_HOME"/output/{kics,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/07] Created work folders."
+  if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+    mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
+  fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
@@ -344,6 +347,9 @@ kics:
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   touch "$JUST_HOME"/output/sarif/"$dt"_kics.sarif && KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_kics.sarif )
+  if [ -f "$JUST_HOME"/.gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+    mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+  fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
 # runs Opengrep over sources in '/src'
 opengrep:
