@@ -43,7 +43,7 @@ The following tasks are automated, thanks to the [Just command runner](https://g
 
 - **static code analysis of Infrastructure as Code (IaC)**: performs a static analysis using [Checkmarx KICS](https://github.com/Checkmarx/kics) and reports on misconfigurations or vulnerabilities in cloud related IaC.
 
-- **software composition analysis (SCA)**: reports on vulnerable dependencies using [OWASP dep-scan](https://github.com/owasp-dep-scan/dep-scan) and [Google OSV-scanner](https://github.com/google/osv-scanner).
+- **software composition analysis (SCA)**: reports on vulnerable dependencies using [Google OSV-scanner](https://github.com/google/osv-scanner).
 
 - **search for hardcoded secrets**: reports on hardcoded secrets in the code using [TruffleHog](https://github.com/trufflesecurity/trufflehog).
 
