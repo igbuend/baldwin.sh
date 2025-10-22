@@ -36,7 +36,7 @@ pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
 mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,script,todo}
-mkdir -p "$JUST_HOME"/output/{appinspector,cloc,depscan,kics,opengrep,osv,sarif,sha256,unpack}
+mkdir -p "$JUST_HOME"/output/{appinspector,cloc,kics,opengrep,osv,sarif,sha256,unpack}
 
 # opengrep
 # alternative for version: git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/opengrep/opengrep.git | tail --lines=1 | cut --delimiter='/' --fields=3
@@ -96,7 +96,7 @@ export PATH=$PATH:/$HOME/.local/bin:/$HOME/.dotnet/tools # for depscan and sarif
 # shellcheck disable=SC2129 # fix later
 echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Checkmarx KICS version: $(docker run --rm --quiet docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "OWASP dep-scan version: $(docker run --rm --quiet ghcr.io/owasp-dep-scan/dep-scan:latest depscan --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
+# echo "OWASP dep-scan version: $(docker run --rm --quiet ghcr.io/owasp-dep-scan/dep-scan:latest depscan --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Google osv-scanner version: $(docker run --rm --quiet ghcr.io/google/osv-scanner:latest --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
