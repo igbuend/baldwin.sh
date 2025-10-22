@@ -36,7 +36,7 @@ pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
 mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,opengrep,sarif-tools,script,todo}
-mkdir -p "$JUST_HOME"/output/{appinspector,csv,cloc,kics,opengrep,osv,sarif,sha256,unpack}
+mkdir -p "$JUST_HOME"/output/{appinspector,csv,cloc,gitleaks,kics,opengrep,osv,sarif,sha256,unpack}
 
 # opengrep
 # alternative for version: git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/opengrep/opengrep.git | tail --lines=1 | cut --delimiter='/' --fields=3
@@ -98,7 +98,7 @@ echo "Checkmarx KICS version: $(docker run --rm --quiet docker.io/checkmarx/kics
 echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Google osv-scanner version: $(docker run --rm --quiet ghcr.io/google/osv-scanner:latest --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "Trufflesecurity truffelhog version: $(docker run --rm --quiet docker.io/trufflesecurity/trufflehog:latest --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
+# echo "Trufflesecurity truffelhog version: $(docker run --rm --quiet docker.io/trufflesecurity/trufflehog:latest --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 

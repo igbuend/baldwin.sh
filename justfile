@@ -5,7 +5,7 @@ alias inspect := appinspector
 alias loc := cloc
 alias osv := osv-scanner
 alias sarif-tools := csv
-alias secrets := trufflehog
+alias secrets := gitleaks
 # read .env file with variables
 set dotenv-load := true
 # default, just list recipes
@@ -192,7 +192,7 @@ doit:
   just appinspector
   just osv-scanner
   just kics
-  just trufflehog
+  just gitleaks
   just opengrep
   just csv
 # opens Google gemini-cli
@@ -334,6 +334,31 @@ _depscan:
     echo "  !!! The source code directory '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+# detects secrets like passwords, API keys, and tokens in '/src'
+gitleaks:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start Gitleaks."
+  mkdir -p "$JUST_HOME"/output/{gitleaks,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
+    TEMP_FOLDER="${TEMP_DIR##*/}"
+    if docker info > /dev/null 2>&1; then
+      docker run --rm -v "$JUST_HOME"/src:/path -v "$JUST_HOME"/output/gitleaks:/baldwin-report ghcr.io/gitleaks/gitleaks:latest dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path /baldwin-report/"$dt"_gitleaks.sarif /path
+      echo "    [02/04] Ran GITLEAKS with SARIF output."
+      rm -f "$JUST_HOME"/output/sarif/*gitleaks.sarif && echo "    [03/04] Removed earlier KICS SARIF output from '/output/sarif' folder."
+      cp "$JUST_HOME"/output/gitleaks/"$dt"_gitleaks.sarif "$JUST_HOME"/output/sarif/"$dt"_gitleaks.sarif && echo "    [04/04] Copied SARIF results to '/output/sarif'."
+      touch "$JUST_HOME"/output/sarif/"$dt"_gitleaks.sarif && GITLEAKS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_gitleaks.sarif )
+    else
+      echo "  !!! Gitleaks uses docker, and it isn't running - please start docker and try again!"
+    fi
+  else
+    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+  fi
+  if [ -z "${GITLEAKS_RESULTS:-}" ]; then
+    GITLEAKS_RESULTS="0 (??)" 
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $GITLEAKS_RESULTS findings."
 # checks cloud config (using KICS) over sources in '/src'
 kics:
   #!/usr/bin/env bash
@@ -486,7 +511,7 @@ sha256:
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # search for secrets with TruffleHog
-trufflehog:
+_trufflehog:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
