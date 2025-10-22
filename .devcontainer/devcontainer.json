@@ -16,7 +16,7 @@
 	"mounts": [
 		"source=${localWorkspaceFolderBasename}-src,target=${containerWorkspaceFolder}/src,type=volume",
 		"source=malpertus-data,target=${containerWorkspaceFolder}/data,type=volume",
-		"target=${containerWorkspaceFolder}/tmp,type=tmpfs"
+		"target=${containerWorkspaceFolder}/tmp,type=tmpfs,tmpfs-mode=1770"
 	],
   "features": {
     "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {}
@@ -35,6 +35,7 @@
 			],
 			"settings": {
 				"files.eol": "auto",
+				"terminal.integrated.defaultProfile.linux": "bash",
 				"window.restoreWindows": "none",
 				"workbench.startupEditor": "none"
 			}

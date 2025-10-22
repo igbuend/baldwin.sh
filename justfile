@@ -4,6 +4,7 @@ alias checksum := sha256
 alias inspect := appinspector
 alias loc := cloc
 alias osv := osv-scanner
+alias sarif-tools := csv
 alias secrets := trufflehog
 # read .env file with variables
 set dotenv-load := true
@@ -21,7 +22,7 @@ backup:
   rm -rf "$tempfolder" || true
   confirm="Backup is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
-# Creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
+# creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
 baldwin:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -148,7 +149,7 @@ _input:
   rm -rf "$tempfolder" || true && echo "    [04/04] Removed temporary folder."
   confirm="Backup of 'input' directory is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_input.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
-# Empties all folders except '/data' and '/backup' folders
+# empties all folders except '/data' and '/backup' folders
 clean:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -162,7 +163,7 @@ clean:
   find "$JUST_HOME"/tmp -mindepth 1 -delete &>/dev/null && echo "    [07/08] Deleted all files in $JUST_HOME/tmp/."
   find "$JUST_HOME"/logs -mindepth 1 -delete &>/dev/null && echo "    [08/08] Deleted all files in $JUST_HOME/logs/."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Empties all folders including data and backup folders
+# empties all folders including data and backup folders
 empty:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -192,6 +193,7 @@ doit:
   just kics
   just trufflehog
   just opengrep
+  just csv
 # opens Google gemini-cli
 gemini:
   gemini
@@ -256,7 +258,7 @@ upgrade:
     echo "Upgrade uses docker, and it isn't running - please start docker and try again!"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Analyses technology with AppInspector tool over sources in '/src'
+# analyses technology with AppInspector tool over sources in '/src'
 appinspector:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -272,7 +274,7 @@ appinspector:
     echo "  !!! The source code folder is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Show Lines of Code (LOC) for sources in '/src'
+# show Lines of Code (LOC) for sources in '/src'
 cloc:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -285,6 +287,25 @@ cloc:
     echo "    [02/02] Calculated LOC."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+# creates summary CVS reports from all SARIF files present in '/output/sarif' using Microsoft sarif-tools
+csv:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
+  mkdir -p "$JUST_HOME"/output/{csv,sarif} && mkdir -p "$JUST_HOME"/logs/sarif-tools/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/06] Created work folders."
+  if [ -d "$JUST_HOME/output/sarif/" ] && [ "$(ls -A "$JUST_HOME/output/sarif/")" ]; then
+    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/csv.XXX)" && echo "    [02/06] Created temporary output folder."
+    TEMP_FOLDER="${TEMP_DIR##*/}"
+    sarif csv --autotrim "$JUST_HOME"/output/sarif/*.sarif --output="$TEMP_DIR" &>>"$JUST_HOME"/logs/sarif-tools/"$dt"_sarif-tools_csv.log && echo "    [02/06] Ran sarif-tools over '/output/sarif'."
+    cp -r "$TEMP_DIR" "$JUST_HOME"/output/csv/ && echo "    [03/06] Copied output to '/output/csv' folder."
+    if cd "$JUST_HOME"/output/csv/; then
+      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/06] Renamed output folder to current (at start) date-time."
+    fi
+    rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [05/06] Removed temporary folder."
+  else
+    echo "  !!! The SARIF folder '/output/sarif' is empty. Please run some scans first."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # performs SCA with OWASP depscan over sources in '/src'
@@ -375,7 +396,7 @@ opengrep:
   fi
   touch "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif )
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OPENGREP_RESULTS findings."
-# Runs Google OSV scanner for SCA over sources in '/src' 
+# runs Google OSV scanner for SCA over sources in '/src' 
 osv-scanner:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -401,7 +422,7 @@ osv-scanner:
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OSV_RESULTS findings."
-# Calculates SHA256 hash of the input source archives
+# calculates SHA256 hash of the input source archives
 sha256:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -444,7 +465,7 @@ trufflehog:
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Unzips source archive(s) into '/src'
+# unzips source archive(s) into '/src'
 unpack:
   #!/usr/bin/env bash
   set -euo pipefail
