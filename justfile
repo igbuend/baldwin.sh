@@ -267,7 +267,7 @@ appinspector:
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [02/06] Ran appinspector and created HTML output."
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output"
+    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output."
     appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/06] Ran appinspector and created TXT output."
     rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif || true && echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
@@ -295,16 +295,16 @@ csv:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start sarif-tools."
-  mkdir -p "$JUST_HOME"/output/{csv,sarif} && mkdir -p "$JUST_HOME"/logs/sarif-tools/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/06] Created work folders."
+  mkdir -p "$JUST_HOME"/output/{csv,sarif} && mkdir -p "$JUST_HOME"/logs/sarif-tools/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/05] Created work folders."
   if [ -d "$JUST_HOME/output/sarif/" ] && [ "$(ls -A "$JUST_HOME/output/sarif/")" ]; then
-    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/csv.XXX)" && echo "    [02/06] Created temporary output folder."
+    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/csv.XXX)" && echo "    [02/05] Created temporary output folder."
     TEMP_FOLDER="${TEMP_DIR##*/}"
-    sarif csv --autotrim "$JUST_HOME"/output/sarif/*.sarif --output="$TEMP_DIR" &>>"$JUST_HOME"/logs/sarif-tools/"$dt"_sarif-tools_csv.log && echo "    [02/06] Ran sarif-tools over '/output/sarif'."
-    cp -r "$TEMP_DIR" "$JUST_HOME"/output/csv/ && echo "    [03/06] Copied output to '/output/csv' folder."
+    sarif csv --autotrim "$JUST_HOME"/output/sarif/*.sarif --output="$TEMP_DIR" &>>"$JUST_HOME"/logs/sarif-tools/"$dt"_sarif-tools_csv.log && echo "    [02/05] Ran sarif-tools over '/output/sarif'."
+    cp -r "$TEMP_DIR" "$JUST_HOME"/output/csv/ && echo "    [03/05] Copied output to '/output/csv' folder."
     if cd "$JUST_HOME"/output/csv/; then
-      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/06] Renamed output folder to current (at start) date-time."
+      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/05] Renamed output folder to current (at start) date-time."
     fi
-    rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [05/06] Removed temporary folder."
+    rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [05/05] Removed temporary folder."
   else
     echo "  !!! The SARIF folder '/output/sarif' is empty. Please run some scans first."
   fi
@@ -384,7 +384,18 @@ opengrep:
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules --dataflow-traces --taint-intrafile --exclude=test --exclude=tests --text --experimental --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
     echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --dataflow-traces --taint-intrafile --severity=WARNING --severity=ERROR --exclude=test --exclude=tests --sarif --experimental --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif 
+    opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+      --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
+      --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --dataflow-traces \
+      --taint-intrafile \
+      --severity=WARNING \
+      --severity=ERROR \
+      --exclude=test \
+      --exclude=tests \
+      --sarif \
+      --experimental \
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif 
     echo "    [03/05] Ran opengrep and created SARIF output file (only ERROR and WARNING levels)."
     rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif "$JUST_HOME"/output/sarif/
@@ -496,15 +507,15 @@ unpack:
     echo "    [02/03] Found source code archives in '/input' folder."
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
       unzip -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/ &>/dev/null
-      echo "    [03/03] Unzipped ZIP archives to '/src' folder ."
+      echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
       7z e "$JUST_HOME"/input/*.7z -o"$JUST_HOME"/src/
-      echo "    [03/03] Unzipped 7Z archives to '/src' folder ."
+      echo "    [03/03] Unzipped 7Z archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.tar.bz2 1> /dev/null 2>&1; then
       tar -xjf "$JUST_HOME"/input/*.tar.bz2 -C "$JUST_HOME"/src/
-      echo "    [03/03] Unzipped TAR.BZ2 archives to '/src' folder ."
+      echo "    [03/03] Unzipped TAR.BZ2 archives to '/src' folder."
     fi
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && tree -d -L 4 "$JUST_HOME"/src > "$JUST_HOME"/output/unpack/"$dt"_unpack_tree.txt
   else
