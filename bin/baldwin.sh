@@ -202,9 +202,9 @@ baldwin:
   "$JUST_HOME"/bin/baldwin.sh -o "$JUST_HOME"/output/baldwin.sh
   echo "    [04/05] Created $JUST_HOME/output/baldwin.sh/justfile."
   if cmp -s "$JUST_HOME"/justfile "$JUST_HOME"/output/baldwin.sh/justfile; then
-    echo "    [05/05] Compared output of 'balwin.sh' with the original justfile. No difference (succes!)."
+    echo "    [05/05] Compared output of 'baldwin.sh' with the original justfile. No difference (succes!)."
   else
-    echo "    [05/05] Compared output of 'balwin.sh' with the original justfile. Not the same (failure! - this never happens)."
+    echo "    [05/05] Compared output of 'baldwin.sh' with the original justfile. Not the same (failure! - this never happens)."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # creates a backup of only the output folder in $PWD/backup
@@ -244,6 +244,7 @@ clean:
   find "$JUST_HOME"/tmp -mindepth 1 -delete &>/dev/null && echo "    [07/08] Deleted all files in $JUST_HOME/tmp/."
   find "$JUST_HOME"/logs -mindepth 1 -delete &>/dev/null && echo "    [08/08] Deleted all files in $JUST_HOME/logs/."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+  mkdir -p "$JUST_HOME"/logs/script && script --quiet "$JUST_HOME"/logs/script/"$dt"_script.log # restart terminal logging, kludge: increases $SHLVL
 # empties all folders including data and backup folders
 empty:
   #!/usr/bin/env bash
@@ -429,7 +430,7 @@ kics:
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     if docker info > /dev/null 2>&1; then
-      docker run -t -u "$USER_UID":"$USER_GID" -v "$PWD"/src/:/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
+      docker run --rm -t -u "$USER_UID":"$USER_GID" -v "$PWD"/src/:/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
       echo "    [02/07] Ran KICS with output in temporary folder."
       cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
       rm -f "$JUST_HOME"/output/sarif/*kics.sarif && echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
