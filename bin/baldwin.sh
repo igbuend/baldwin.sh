@@ -450,6 +450,23 @@ kics:
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
+# runs OWASP Noir to determine Attack Surface
+noir:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  mkdir -p "$JUST_HOME"/output/noir && mkdir -p "$JUST_HOME"/src && echo "    [01/02] Created work folders."
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    if docker info > /dev/null 2>&1; then
+      docker run --rm -it -v "$JUST_HOME/src:/src" -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color --no-log -o /baldwin_report/"$dt"_noir.sarif 
+      echo "    [02/02] Succesfully ran Noir and created report in SARIF format (is TXT format, bug v0.24?)."
+    else
+      echo "  !!! OWASP Noir uses docker, and it isn't running - please start docker and try again!"
+    fi
+  else
+    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # runs Opengrep over sources in '/src'
 opengrep:
   #!/usr/bin/env bash
