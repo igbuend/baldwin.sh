@@ -35,7 +35,7 @@ pipx install sarif-tools
 pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
-mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,script,todo}
+mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,opengrep,script,todo}
 mkdir -p "$JUST_HOME"/output/{appinspector,cloc,kics,opengrep,osv,sarif,sha256,unpack}
 
 # opengrep

@@ -352,15 +352,29 @@ opengrep:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/03] Created work folders."
+  mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && \
+    mkdir -p "$JUST_HOME"/logs/opengrep && \
+    mkdir -p "$JUST_HOME"/src/ && \
+    echo "    [01/05] Created work folders."
+  if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+    mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
+  fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [02/03] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --no-git-ignore --sarif-output="$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif --json-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.json --text-output="$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt --experimental "$JUST_HOME"/src 
-    echo "    [03/03] Ran opengrep and created SARIF, JSON and TXT output files."
+    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --dataflow-traces --taint-intrafile --exclude=test --exclude=tests --text --experimental --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
+    echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
+    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --dataflow-traces --taint-intrafile --severity=WARNING --severity=ERROR --exclude=test --exclude=tests --sarif --experimental --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif 
+    echo "    [03/05] Ran opengrep and created SARIF output file (only ERROR and WARNING levels)."
+    rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
+    cp "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif "$JUST_HOME"/output/sarif/
+    echo "    [05/05] Copied SARIF results to '/output/sarif' folder."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+  if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+    mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+  fi
+  touch "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif )
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OPENGREP_RESULTS findings."
 # Runs Google OSV scanner for SCA over sources in '/src' 
 osv-scanner:
   #!/usr/bin/env bash
