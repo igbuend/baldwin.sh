@@ -16,7 +16,7 @@
 	"mounts": [
 		"source=${localWorkspaceFolderBasename}-src,target=${containerWorkspaceFolder}/src,type=volume",
 		"source=malpertus-data,target=${containerWorkspaceFolder}/data,type=volume",
-		"target=${containerWorkspaceFolder}/tmp,type=tmpfs,tmpfs-mode=1770"
+		"target=${containerWorkspaceFolder}/tmp,type=tmpfs,tmpfs-mode=777"
 	],
   "features": {
     "ghcr.io/stuartleeks/dev-container-features/shell-history:0": {}
