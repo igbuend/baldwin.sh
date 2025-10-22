@@ -374,7 +374,7 @@ cloc:
 csv:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start sarif-tools."
   mkdir -p "$JUST_HOME"/output/{csv,sarif} && mkdir -p "$JUST_HOME"/logs/sarif-tools/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/06] Created work folders."
   if [ -d "$JUST_HOME/output/sarif/" ] && [ "$(ls -A "$JUST_HOME/output/sarif/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/csv.XXX)" && echo "    [02/06] Created temporary output folder."
@@ -476,31 +476,41 @@ opengrep:
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
   touch "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif )
+  if [ -z "${OPENGREP_RESULTS:-}" ]; then
+    OSV_RESULTS="0 (??)" 
+  fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OPENGREP_RESULTS findings."
 # runs Google OSV scanner for SCA over sources in '/src' 
 osv-scanner:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
-  # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
-  if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
-    mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
-  fi
   if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
-    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src &>/dev/null > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
-    echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
-    docker run --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>/dev/null > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
-    echo "    [03/04] Ran osv-scanner and created SARIF results."
-    rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
-    cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true
-    echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
+    if docker info > /dev/null 2>&1; then
+      # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
+      if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+        mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
+      fi
+      mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/logs/osv && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
+      docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log  > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
+      echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
+      docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
+      echo "    [03/04] Ran osv-scanner and created SARIF results."
+      rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
+      cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true
+      echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
+      touch "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif && OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif )
+    else
+      echo "  !!! Google OSV uses docker, and it isn't running - please start docker and try again!"
+    fi
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
   fi
-  touch "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif && OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif )
   if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+  fi
+  if [ -z "${OSV_RESULTS:-}" ]; then
+    OSV_RESULTS="0 (??)" 
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OSV_RESULTS findings."
 # calculates SHA256 hash of the input source archives
