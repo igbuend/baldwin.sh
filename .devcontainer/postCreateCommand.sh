@@ -28,7 +28,9 @@ case ":$PATH:" in
 esac
 sudo chown -R "$(whoami)":"$(whoami)" "$HOME"/.local
 
-pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
+# pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
+pnpm add -g @google/gemini-cli
+# npx https://github.com/google-gemini/gemini-cli
 
 # shellcheck disable=SC2102
 pipx install sarif-tools
@@ -72,9 +74,9 @@ if cd "$JUST_HOME"/tmp; then
   fi
   sudo rm -rf ./todo.txt-cli || true
 fi
-mkdir -p "$JUST_HOME/logs/todo"
-export TODO_DIR="$JUST_HOME/logs/todo"
-echo 'export TODO_DIR="/workspaces/baldwin/logs/todo"' >> "$HOME/.bashrc"
+mkdir -p "$JUST_HOME"/logs/todo
+export TODO_DIR="$JUST_HOME"/logs/todo
+echo 'export TODO_DIR="/workspaces/baldwin/logs/todo"' >> "$HOME"/.bashrc
 
 # jsluice
 go install github.com/BishopFox/jsluice/cmd/jsluice@latest
@@ -104,7 +106,7 @@ dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 
 # implement terminal input logging
 # shellcheck disable=SC2016
-echo '[[ "$SHLVL" -eq 2 ]] && dt=$(date --utc --rfc-3339=ns)'>> "$HOME/.bashrc"
+echo '[[ "$SHLVL" -eq 2 ]] && dt=$(date --utc --rfc-3339=ns)'>> "$HOME"/.bashrc
 # shellcheck disable=SC2016
-echo '[[ "$SHLVL" -eq 2 ]] && '"script --quiet $JUST_HOME"/logs/script/'"$dt"_script.log' >> "$HOME/.bashrc"
+echo '[[ "$SHLVL" -eq 2 ]] && '"script --quiet $JUST_HOME"/logs/script/'"$dt"_script.log' >> "$HOME"/.bashrc
 exit 0
