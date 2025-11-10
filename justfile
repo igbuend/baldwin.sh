@@ -406,7 +406,8 @@ noir:
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
       docker run --rm -it -v "$JUST_HOME"/src:/src -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color -o /baldwin_report/"$dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$dt"_noir.sarif.log 
-      echo "    [02/02] Succesfully ran Noir and created report in SARIF format (is TXT format, bug v0.24?)."
+      noir_version=$(docker run --rm ghcr.io/owasp-noir/noir:latest noir --version)
+      echo "    [02/02] Succesfully ran Noir $noir_version and created report in SARIF format (is TXT format, bug v0.24?)."
     else
       echo "  !!! OWASP Noir uses docker, and it isn't running - please start docker and try again!"
     fi
