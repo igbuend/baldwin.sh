@@ -399,10 +399,13 @@ noir:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/noir && mkdir -p "$JUST_HOME"/src && echo "    [01/02] Created work folders."
+  mkdir -p "$JUST_HOME"/output/noir && \
+    mkdir -p "$JUST_HOME"/logs/noir && \
+    mkdir -p "$JUST_HOME"/src && \
+    echo "    [01/02] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME/src:/src" -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color --no-log -o /baldwin_report/"$dt"_noir.sarif 
+      docker run --rm -it -v "$JUST_HOME"/src:/src -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color -o /baldwin_report/"$dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$dt"_noir.sarif.log 
       echo "    [02/02] Succesfully ran Noir and created report in SARIF format (is TXT format, bug v0.24?)."
     else
       echo "  !!! OWASP Noir uses docker, and it isn't running - please start docker and try again!"
