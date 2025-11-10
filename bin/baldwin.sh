@@ -480,11 +480,15 @@ noir:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/noir && mkdir -p "$JUST_HOME"/src && echo "    [01/02] Created work folders."
+  mkdir -p "$JUST_HOME"/output/noir && \
+    mkdir -p "$JUST_HOME"/logs/noir && \
+    mkdir -p "$JUST_HOME"/src && \
+    echo "    [01/02] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME/src:/src" -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color --no-log -o /baldwin_report/"$dt"_noir.sarif 
-      echo "    [02/02] Succesfully ran Noir and created report in SARIF format (is TXT format, bug v0.24?)."
+      docker run --rm -it -v "$JUST_HOME"/src:/src -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color -o /baldwin_report/"$dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$dt"_noir.sarif.log 
+      noir_version=$(docker run --rm ghcr.io/owasp-noir/noir:latest noir --version)
+      echo "    [02/02] Succesfully ran Noir $noir_version and created report in SARIF format (is TXT format, bug v0.24?)."
     else
       echo "  !!! OWASP Noir uses docker, and it isn't running - please start docker and try again!"
     fi
@@ -505,7 +509,16 @@ opengrep:
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --dataflow-traces --taint-intrafile --exclude=test --exclude=tests --text --experimental --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
+    opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+      --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
+      --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --dataflow-traces \
+      --taint-intrafile \
+      --exclude=test \
+      --exclude=tests \
+      --text \
+      --experimental \
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
     echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
