@@ -428,7 +428,16 @@ opengrep:
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules --dataflow-traces --taint-intrafile --exclude=test --exclude=tests --text --experimental --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
+    opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+      --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
+      --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --dataflow-traces \
+      --taint-intrafile \
+      --exclude=test \
+      --exclude=tests \
+      --text \
+      --experimental \
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
     echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
