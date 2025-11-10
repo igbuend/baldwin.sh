@@ -294,17 +294,41 @@ cloc:
 csv:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start sarif-tools."
-  mkdir -p "$JUST_HOME"/output/{csv,sarif} && mkdir -p "$JUST_HOME"/logs/sarif-tools/ && mkdir -p "$JUST_HOME"/tmp/ && echo "    [01/05] Created work folders."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start run Microsoft sarif-tools to generate a CSV file from most recent SARIF output."
+  mkdir -p "$JUST_HOME"/output/{csv,sarif} && \
+    mkdir -p "$JUST_HOME"/logs/sarif-tools/ && \
+    mkdir -p "$JUST_HOME"/tmp/ && \
+    echo "    [01/06] Created work folders."
   if [ -d "$JUST_HOME/output/sarif/" ] && [ "$(ls -A "$JUST_HOME/output/sarif/")" ]; then
-    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/csv.XXX)" && echo "    [02/05] Created temporary output folder."
+    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/csv.XXX)" && echo "    [02/06] Created temporary output folder."
     TEMP_FOLDER="${TEMP_DIR##*/}"
-    sarif csv --autotrim "$JUST_HOME"/output/sarif/*.sarif --output="$TEMP_DIR" &>>"$JUST_HOME"/logs/sarif-tools/"$dt"_sarif-tools_csv.log && echo "    [02/05] Ran sarif-tools over '/output/sarif'."
-    cp -r "$TEMP_DIR" "$JUST_HOME"/output/csv/ && echo "    [03/05] Copied output to '/output/csv' folder."
+    # sarif tools does not like sarif reports with zero issues, move those reports to /output/sarif/no_results
+    for file in "$JUST_HOME"/output/sarif/*.sarif; do
+      if [[ -f "$file" ]]; then
+        SARIF_RESULTS=0 && SARIF_RESULTS=$(jq -c '.runs[].results | length' "$file" )
+        if [ -z "${SARIF_RESULTS:-}" ]; then
+          SARIF_RESULTS="0"
+        fi
+        if [[ "$SARIF_RESULTS" == "0" ]]; then
+          mkdir -p "$JUST_HOME/output/sarif/no_results"
+          mv "$file" "$JUST_HOME/output/sarif/no_results/"
+          file=$(basename "$file")
+          echo "       !!! Moved $file (zero issues in sarif report or format error)'."
+        fi
+      fi
+    done
+    echo "    [03/07] Moved sarif files with zero results to /output/sarif/no_results."
+    sarif csv --autotrim "$JUST_HOME"/output/sarif/*.sarif --output="$TEMP_DIR" &>>"$JUST_HOME"/logs/sarif-tools/"$dt"_sarif-tools_csv.log && \
+      echo "    [04/07] Ran sarif-tools over '/output/sarif'."
+    cp -r "$TEMP_DIR" "$JUST_HOME"/output/csv/ && echo "    [05/07] Copied output to '/output/csv' folder."
     if cd "$JUST_HOME"/output/csv/; then
-      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/05] Renamed output folder to current (at start) date-time."
+      mv -T "$TEMP_FOLDER" "$dt" && echo "    [06/07] Renamed output folder to current (at start) date-time."
     fi
-    rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [05/05] Removed temporary folder."
+    rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
   else
     echo "  !!! The SARIF folder '/output/sarif' is empty. Please run some scans first."
   fi
