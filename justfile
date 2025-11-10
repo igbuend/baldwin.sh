@@ -356,7 +356,7 @@ gitleaks:
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   if [ -z "${GITLEAKS_RESULTS:-}" ]; then
-    GITLEAKS_RESULTS="0 (??)" 
+    GITLEAKS_RESULTS="0 (??)"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $GITLEAKS_RESULTS findings."
 # checks cloud config (using KICS) over sources in '/src'
@@ -398,23 +398,34 @@ kics:
 noir:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    NOIR_RESULTS="zero" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start run OWASP Noir to identify the attack surface."
   mkdir -p "$JUST_HOME"/output/noir && \
     mkdir -p "$JUST_HOME"/logs/noir && \
     mkdir -p "$JUST_HOME"/src && \
-    echo "    [01/02] Created work folders."
+    echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME"/src:/src -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color -o /baldwin_report/"$dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$dt"_noir.sarif.log 
+      docker run --rm -it -v "$JUST_HOME"/src:/src -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color -o /baldwin_report/"$dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$dt"_noir.sarif.log
       noir_version=$(docker run --rm ghcr.io/owasp-noir/noir noir --version)
-      echo "    [02/02] Succesfully ran Noir $noir_version and created report in SARIF format (is TXT format, bug v0.24?)."
+      echo "    [02/04] Succesfully ran Noir $noir_version and created report in SARIF format."
+      rm -f "$JUST_HOME"/output/sarif/*noir.sarif && echo "    [03/04] Removed earlier NOIR SARIF output from '/output/sarif' folder."
+      cp "$JUST_HOME"/output/noir/"$dt"_noir.sarif "$JUST_HOME"/output/sarif/ && echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
+      touch "$JUST_HOME"/output/sarif/"$dt"_noir.sarif && NOIR_RESULTS=0 && NOIR_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_noir.sarif )
+      if [ -z "${NOIR_RESULTS:-}" ]; then
+        NOIR_RESULTS="0 (??)"
+      fi
     else
       echo "  !!! OWASP Noir uses docker, and it isn't running - please start docker and try again!"
     fi
   else
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run OWASP Noir with $NOIR_RESULTS findings."
 # runs Opengrep over sources in '/src'
 opengrep:
   #!/usr/bin/env bash
@@ -437,7 +448,7 @@ opengrep:
       --exclude=tests \
       --text \
       --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt 
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt
     echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
@@ -450,7 +461,7 @@ opengrep:
       --exclude=tests \
       --sarif \
       --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif 
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif
     echo "    [03/05] Ran opengrep and created SARIF output file (only ERROR and WARNING levels)."
     rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif "$JUST_HOME"/output/sarif/
@@ -463,10 +474,10 @@ opengrep:
   fi
   touch "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif )
   if [ -z "${OPENGREP_RESULTS:-}" ]; then
-    OSV_RESULTS="0 (??)" 
+    OSV_RESULTS="0 (??)"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OPENGREP_RESULTS findings."
-# runs Google OSV scanner for SCA over sources in '/src' 
+# runs Google OSV scanner for SCA over sources in '/src'
 osv-scanner:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -496,7 +507,7 @@ osv-scanner:
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
   if [ -z "${OSV_RESULTS:-}" ]; then
-    OSV_RESULTS="0 (??)" 
+    OSV_RESULTS="0 (??)"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OSV_RESULTS findings."
 # calculates SHA256 hash of the input source archives
