@@ -33,7 +33,7 @@ pnpm add -g @google/gemini-cli
 # npx https://github.com/google-gemini/gemini-cli
 
 # shellcheck disable=SC2102
-pipx install sarif-tools
+pipx install sarif-tools strix-agent
 pipx ensurepath
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
