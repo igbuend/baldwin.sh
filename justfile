@@ -620,7 +620,7 @@ unpack:
   if "$found"; then
     echo "    [02/03] Found source code archives in '/input' folder."
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
-      unzip -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/ &>/dev/null
+      unzip -qq -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
