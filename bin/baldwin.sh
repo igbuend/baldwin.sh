@@ -639,6 +639,30 @@ sha256:
     echo "    [04/04] 7Z archives not present in '/input' folder."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+# find vulnerabilities using AI with STRIX in sources in '/src'
+strix:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start STRIX."
+  mkdir -p "$JUST_HOME"/output/strix && \
+    mkdir -p "$JUST_HOME"/src/ && \
+    echo "    [01/07] Created work folders."
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    if docker info > /dev/null 2>&1; then
+      cd "$JUST_HOME"/output/strix
+      strix --target "$JUST_HOME"/src || true
+      echo "    [02/07] Ran STRIX."
+    else
+      echo "  !!! STRIX uses docker, and it isn't running - please start docker and try again!"
+    fi
+  else
+    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+  fi
+  cd "$JUST_HOME"
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # search for secrets with TruffleHog
 _trufflehog:
   #!/usr/bin/env bash
@@ -677,7 +701,7 @@ unpack:
   if "$found"; then
     echo "    [02/03] Found source code archives in '/input' folder."
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
-      unzip -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/ &>/dev/null
+      unzip -qq -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then

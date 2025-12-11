@@ -40,8 +40,6 @@ RUN export DEBIAN_FRONTEND=noninteractive \
       make \
       nano \
       net-tools \
-      nodejs \
-      npm \
       passt \
       pipx \
       pigz \
@@ -70,6 +68,15 @@ RUN command -v locale-gen &>/dev/null && \
     && export LANGUAGE=en_US.UTF-8 \
     && export LANG=en_US.UTF-8 \
     && export LC_ALL=en_US.UTF-8
+
+# Installing nodejs/npm/pnpm
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x -o nodesource_setup.sh \
+    && bash ./nodesource_setup.sh \
+    && rm -rf ./nodesource_setup.sh \
+    && export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y install --no-install-recommends nodejs
+
+# Install pnpm, needed for gemini-cli / cyclonedx
+RUN npm install -g pnpm
 
 # Installing Docker
 RUN install -m 0755 -d /etc/apt/keyrings \
@@ -108,9 +115,6 @@ RUN groupadd --non-unique --gid $USER_GID $USER_NAME \
     && chmod 0440 /etc/sudoers.d/$USER_NAME \
     && getent group docker &>/dev/null|| groupadd docker \
     && usermod -aG docker $USER_NAME
-
-# Install pnpm # for gemini-cli / cyclonedx
-RUN npm install -g pnpm
 
 # Cleanup -> not really needed, since we install more apps in postCreateCommand.sh
 # RUN rm -rf /var/lib/apt/lists/*
