@@ -4,7 +4,7 @@ alias checksum := sha256
 alias inspect := appinspector
 alias loc := cloc
 alias osv := osv-scanner
-alias sarif-tools := csv
+alias sarif_tools := csv
 alias secrets := gitleaks
 # read .env file with variables
 set dotenv-load := true
