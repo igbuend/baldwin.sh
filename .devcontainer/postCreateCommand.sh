@@ -17,7 +17,6 @@ sudo service docker start
 
 sudo apt update
 pnpm setup
-sudo pnpm self-update
 export PNPM_HOME="$HOME/.local/share/pnpm"
 touch "$HOME/.bashrc"
 #shellcheck disable=SC1090,SC1091
@@ -26,31 +25,16 @@ case ":$PATH:" in
   *":$PNPM_HOME:"*) ;;
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
+
+# gemini-cli
+pnpm add -g @google/gemini-cli
+
 sudo chown -R "$(whoami)":"$(whoami)" "$HOME"/.local
 
-# pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
-pnpm add -g @google/gemini-cli
-# npx https://github.com/google-gemini/gemini-cli
-
-# shellcheck disable=SC2102
-pipx install sarif-tools strix-agent
-pipx ensurepath
-
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
-mkdir -p "$JUST_HOME"/logs/{appinspector,dpkg,opengrep,sarif-tools,script,todo}
-mkdir -p "$JUST_HOME"/output/{appinspector,csv,cloc,gitleaks,kics,opengrep,osv,sarif,sha256,unpack}
 
-# opengrep
-# alternative for version: git -c 'versionsort.suffix=-' ls-remote --tags --sort='v:refname' https://github.com/opengrep/opengrep.git | tail --lines=1 | cut --delimiter='/' --fields=3
-og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
-if [[ -n "$og_version" ]]; then
-  # shellcheck disable=SC2154
-  if [[ "$arch" == *arm* ]]; then
-    sudo wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_aarch64
-  else
-    sudo wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_x86
-  fi
-  sudo chmod a+x /usr/local/bin/opengrep || true
+# opengrep data
+
   if cd "$JUST_HOME"/data; then
     sudo rm -rf ./opengrep-rules || true
     git clone --depth 1 https://github.com/opengrep/opengrep-rules.git
@@ -62,7 +46,6 @@ if [[ -n "$og_version" ]]; then
       find . -type f -not -iname "*.yaml" -delete
     fi
   fi
-fi
 
 # todo.sh
 if cd "$JUST_HOME"/tmp; then
@@ -77,9 +60,6 @@ fi
 mkdir -p "$JUST_HOME"/logs/todo
 export TODO_DIR="$JUST_HOME"/logs/todo
 echo 'export TODO_DIR="/workspaces/baldwin/logs/todo"' >> "$HOME"/.bashrc
-
-# jsluice
-go install github.com/BishopFox/jsluice/cmd/jsluice@latest
 
 sudo dotnet workload update
 dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI

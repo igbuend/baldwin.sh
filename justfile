@@ -20,7 +20,7 @@ backup:
   tar --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 --exclude="$JUST_HOME/"data --exclude="$JUST_HOME/"backup --exclude="$JUST_HOME"/tmp "$JUST_HOME"
   cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2
   rm -rf "$tempfolder" || true
-  confirm="Backup is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
+  confirm="Backup is /backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
 # creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
 baldwin:
@@ -194,6 +194,7 @@ doit:
   just kics
   just gitleaks
   just opengrep
+  just noir
   just csv
 # opens Google gemini-cli
 gemini:
@@ -210,6 +211,7 @@ upgrade:
     echo "  !!! user cannot run passwordless sudo"
   fi
   sudo apt update -y && sudo apt upgrade -y
+  brew update && brew outdated && brew upgrade && brew cleanup
   arch=$(uname -m)
   if [[ "$arch" == *arm* ]]; then
     sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_arm64
@@ -383,6 +385,20 @@ gitleaks:
     GITLEAKS_RESULTS="0 (??)"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $GITLEAKS_RESULTS findings."
+# installs Homebrew if not already installed (required by OWASP Noir installation). Needs Internet access.
+_homebrew:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
+  if ! command -v brew >/dev/null 2>&1; then
+    if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+      mkdir -p "$JUST_HOME"/logs/homebrew
+    fi
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    export NONINTERACTIVE=1 && /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
+  fi
+  brew_version=$(brew --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
 # checks cloud config (using KICS) over sources in '/src'
 kics:
   #!/usr/bin/env bash
@@ -418,8 +434,24 @@ kics:
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
-# runs OWASP Noir to determine Attack Surface
-noir:
+# installs Homebrew if needed (required by OWASP Noir installation). Needs Internet access.
+_noir-brew: _homebrew
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'OWASP Noir'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
+  else
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    brew install noir  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
+  fi
+  noir_version=$(noir --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'OWASP Noir' (Noir $noir_version)."
+# runs OWASP Noir to determine Attack Surface (not using AI)
+noir: _noir-brew
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -430,24 +462,22 @@ noir:
     echo "$dt [$HOST_NAME] [$progname] Start run OWASP Noir to identify the attack surface."
   mkdir -p "$JUST_HOME"/output/noir && \
     mkdir -p "$JUST_HOME"/logs/noir && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no-results} && \
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME"/src:/src -v "$JUST_HOME"/output/noir:/baldwin_report ghcr.io/owasp-noir/noir:latest noir -b /src -T --format sarif --no-color -o /baldwin_report/"$dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$dt"_noir.sarif.log
-      noir_version=$(docker run --rm ghcr.io/owasp-noir/noir noir --version)
-      echo "    [02/04] Succesfully ran Noir $noir_version and created report in SARIF format."
-      rm -f "$JUST_HOME"/output/sarif/*noir.sarif && echo "    [03/04] Removed earlier NOIR SARIF output from '/output/sarif' folder."
-      cp "$JUST_HOME"/output/noir/"$dt"_noir.sarif "$JUST_HOME"/output/sarif/ && echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
-      touch "$JUST_HOME"/output/sarif/"$dt"_noir.sarif && NOIR_RESULTS=0 && NOIR_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_noir.sarif )
-      if [ -z "${NOIR_RESULTS:-}" ]; then
-        NOIR_RESULTS="0 (??)"
-      fi
-    else
-      echo "  !!! OWASP Noir uses docker, and it isn't running - please start docker and try again!"
-    fi
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    noir -b "$JUST_HOME"/src -T --format sarif --no-color -o "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$safe_dt"_noir.sarif.log
+    noir_version=$(noir --version)
+    echo "    [02/04] Succesfully ran Noir $noir_version and created report in SARIF format."
+    mv --force "$JUST_HOME"/output/sarif/*noir.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && echo "    [03/04] Removed earlier NOIR SARIF output from '/output/sarif' folder."
+    cp "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif "$JUST_HOME"/output/sarif/ && echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
+    touch "$JUST_HOME"/output/sarif/"$safe_dt"_noir.sarif && NOIR_RESULTS=0 && NOIR_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_noir.sarif )
   else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! The source code folder '/src' is empty. Please unpack the sources first with 'just unpack'."
+  fi
+  if [ -z "${NOIR_RESULTS:-}" ]; then
+    NOIR_RESULTS="0 (??)"
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run OWASP Noir with $NOIR_RESULTS findings."
 # runs Opengrep over sources in '/src'

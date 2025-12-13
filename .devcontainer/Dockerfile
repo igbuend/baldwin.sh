@@ -73,27 +73,25 @@ RUN command -v locale-gen &>/dev/null && \
 RUN curl -fsSL https://deb.nodesource.com/setup_24.x -o nodesource_setup.sh \
     && bash ./nodesource_setup.sh \
     && rm -rf ./nodesource_setup.sh \
-    && export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y install --no-install-recommends nodejs
+    && export DEBIAN_FRONTEND=noninteractive && apt-get update && apt-get -y install --no-install-recommends nodejs \
+    && npm install -g pnpm
 
-# Install pnpm, needed for gemini-cli / cyclonedx
-RUN npm install -g pnpm
+# Install opengrep
+RUN og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') \
+    && if [[ -n "$og_version" && "$arch" == *arm* ]] ; \
+       then wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_aarch64 ; \
+       else wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_x86 ; \
+       fi && sudo chmod a+x /usr/local/bin/opengrep || true
 
 # Installing Docker
 RUN install -m 0755 -d /etc/apt/keyrings \
     && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
     && chmod a+r /etc/apt/keyrings/docker.asc
 
-# debian
-#RUN echo \
-#  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-#  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-#  tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-# Ubuntu
 RUN echo \
   "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
   $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
 
 RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
     && apt-get -y install --no-install-recommends \
@@ -103,8 +101,8 @@ RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
         docker-buildx-plugin \
         docker-compose-plugin
 
-# Delete default "ubuntu/vscode" user/group, if it exists. Be in control.
-# TODO find and wipe all default users. How?
+# Delete default "ubuntu/vscode" user, if it exists. Be in control.
+# TODO find and wipe all "default" users. How?
 RUN if id "ubuntu" &>/dev/null; then deluser --remove-home ubuntu; fi
 RUN if id "vcode" &>/dev/null; then deluser --remove-home vscode; fi
 
@@ -120,7 +118,14 @@ RUN groupadd --non-unique --gid $USER_GID $USER_NAME \
 # RUN rm -rf /var/lib/apt/lists/*
 
 # Set the default user. Run whatever you need to install as non-root user after this line.
-# Not needed, but evades "kics" warning :).
 ENV HOME /home/$USER_NAME
 USER $USER_NAME
 WORKDIR $HOME
+
+# Install tools
+
+# sarif-tools and strix-agent
+RUN pipx install sarif-tools strix-agent -qq && pipx ensurepath
+
+# jsluice
+RUN go install github.com/BishopFox/jsluice/cmd/jsluice@latest
