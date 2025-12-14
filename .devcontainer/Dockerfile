@@ -1,4 +1,4 @@
-FROM ubuntu:25.10
+FROM ubuntu:latest
 # It is relatively straightforward to change to Debian/Kali. Been there, done that, got the T-Shirt.
 # Not going back, most 3rd party apps only support Ubuntu out of the box and my time is valuable.
 # do not change USER_UID/USER_GUID since plenty of badly written docker/container software only works with UID 1000. Sigh.
@@ -27,7 +27,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
       dirmngr \
       dnsutils \
       dos2unix \
-      dotnet-sdk-9.0 \
+      dotnet-sdk-8.0 \
       fuse-overlayfs \
       gawk \
       git \

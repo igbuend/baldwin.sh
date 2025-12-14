@@ -345,12 +345,9 @@ _gitleaks-brew: _homebrew
   if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
     mkdir -p "$JUST_HOME"/logs/homebrew
   fi
-  if ! command -v brew >/dev/null 2>&1; then
-    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
-  else
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    brew install gitleaks  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_gitleaks_installation.log
-  fi
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+  brew install gitleaks  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_gitleaks_installation.log
   gitleaks_version=$(gitleaks --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'gitleaks' ($gitleaks_version)."
 # detects secrets like passwords, API keys, and tokens in '/src'
@@ -369,6 +366,7 @@ gitleaks: _gitleaks-brew
     echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     gitleaks dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME/src/" &>"$JUST_HOME"/logs/gitleaks/"$safe_dt"_gitleaks.sarif.log
     echo "    [02/04] Ran GITLEAKS with SARIF output."
     mv --force "$JUST_HOME"/output/sarif/*gitleaks.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
@@ -415,7 +413,11 @@ kics:
     echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
   USER_UID=$(id -u)
   USER_GID=$(id -g)
-  mkdir -p "$JUST_HOME"/output/{kics,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/07] Created work folders."
+    mkdir -p "$JUST_HOME"/output/kics && \
+    mkdir -p "$JUST_HOME"/logs/kics && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no-results} && \
+    mkdir -p "$JUST_HOME"/src && \
+    echo "    [01/04] Created work folders."
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
@@ -423,13 +425,16 @@ kics:
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     if docker info > /dev/null 2>&1; then
-      docker run --rm -t -u "$USER_UID":"$USER_GID" -v "$PWD"/src/:/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
+      docker run --rm -t -u "$USER_UID":"$USER_GID" -v "$JUST_HOME/src/":/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
       echo "    [02/07] Ran KICS with output in temporary folder."
       cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
-      rm -f "$JUST_HOME"/output/sarif/*kics.sarif && echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
-      cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$dt"_kics.sarif && echo "    [05/07] Copied SARIF results to '/output/sarif'."
+      mv --force "$JUST_HOME"/output/sarif/*kics.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
+        echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
+      printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+      cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif && \
+        echo "    [05/07] Copied SARIF results to '/output/sarif'."
       if cd "$JUST_HOME"/output/kics/; then
-        mv -T $TEMP_FOLDER $dt && echo "    [06/07] Renamed output folder to current (at start) date-time."
+        mv -T $TEMP_FOLDER $safe_dt && echo "    [06/07] Renamed output folder to current date-time."
       fi
       rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 && echo "    [07/07] Removed temporary folder."
     else
@@ -438,7 +443,8 @@ kics:
   else
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
-  touch "$JUST_HOME"/output/sarif/"$dt"_kics.sarif && KICS_RESULTS=0 && KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_kics.sarif )
+  touch "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif && \
+    KICS_RESULTS=0 && KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif )
   if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
@@ -451,7 +457,7 @@ _noir-brew: _homebrew
   if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
     mkdir -p "$JUST_HOME"/logs/homebrew
   fi
-  source /home/baldwin/.bashrc
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
   if ! command -v brew >/dev/null 2>&1; then
     echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
   else
@@ -476,6 +482,7 @@ noir: _noir-brew
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     noir -b "$JUST_HOME"/src -T --format sarif --no-color -o "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$safe_dt"_noir.sarif.log
     noir_version=$(noir --version)
