@@ -1,4 +1,4 @@
-FROM ubuntu:plucky
+FROM ubuntu:25.10
 # It is relatively straightforward to change to Debian/Kali. Been there, done that, got the T-Shirt.
 # Not going back, most 3rd party apps only support Ubuntu out of the box and my time is valuable.
 # do not change USER_UID/USER_GUID since plenty of badly written docker/container software only works with UID 1000. Sigh.
@@ -121,11 +121,3 @@ RUN groupadd --non-unique --gid $USER_GID $USER_NAME \
 ENV HOME /home/$USER_NAME
 USER $USER_NAME
 WORKDIR $HOME
-
-# Install tools
-
-# sarif-tools and strix-agent
-RUN pipx install sarif-tools strix-agent -qq && pipx ensurepath
-
-# jsluice
-RUN go install github.com/BishopFox/jsluice/cmd/jsluice@latest

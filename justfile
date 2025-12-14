@@ -22,110 +22,6 @@ backup:
   rm -rf "$tempfolder" || true
   confirm="Backup is /backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
-# creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
-baldwin:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME/bin" && mkdir -p "$JUST_HOME"/output/baldwin.sh && echo "    [01/05] Created work folders."
-  # shellcheck disable=SC1009,SC1073
-  cat << 'EOF' > "$JUST_HOME"/bin/baldwin.sh
-  #!/usr/bin/env bash
-
-  # ------ Variables ------
-  HOST_NAME="$(hostname)"
-  readonly HOST_NAME
-  progname="$(basename "$0")"
-  readonly progname
-
-  # ------ Helper Functions ------
-
-  # displays an error message and exit
-  die() {
-    echo ""
-    echo "$HOST_NAME $progname  Error: $1" >&2
-    echo ""
-    exit 1
-  }
-
-  # usage function
-  usage(){
-    cat << HEREDOC
-
-    Usage: $progname --output <path>
-
-    mandatory arguments:
-      -o, --output <path>     folder to be created, containing the "justfile"
-
-    optional arguments:
-      -h, --help              show this help message and exit
-
-  HEREDOC
-  }
-
-  # --- Main Script ---
-
-  # ------ Argument Parsing ------
-
-  # bail if no params
-
-  [ $# -eq 0 ] && usage && exit 1
-
-  # use getopt and store the output into $OPTS
-  # note the use of -o for the short options, --long for the long name options
-  # and a : for any option that takes a parameter
-
-  if ! OPTS=$(getopt --options="o:h" --longoptions="help,output:" --name "$progname" -- "$@"); then
-     echo "Error in command line arguments." >&2 ; usage; exit 1 ;
-  fi
-
-  eval set -- "$OPTS"
-  while true; do
-    case "$1" in
-      -h | --help ) usage; exit 0 ;;
-      -o | --output ) output_folder="$2"; shift 2 ;;
-      -- ) shift; break ;;
-      * ) break ;;
-    esac
-  done
-
-  shift "$(( OPTIND - 1 ))"
-  if [ -z "$output_folder" ]; then
-    die "Missing -o/--output parameter Use --help for usage."
-  fi
-
-  if [ -d "$output_folder" ]; then
-    die "Output folder already already exists. Please choose another location."
-  fi
-
-  mkdir -p "$output_folder"/input &>/dev/null || true
-
-  # check if output_ folder exists and is writeable
-  if [ ! -d "$output_folder" ]; then
-    die "Source folder '$output_folder' does not exist or is not a directory."
-  else
-    realpath_folder=$(realpath "$output_folder")
-    if [ ! -w "$realpath_folder" ]; then
-      die "Output folder '$output_folder' is not writable."
-    fi
-  fi
-  #shellcheck disable=SC1039
-  EOF
-  echo "cat > \"\$realpath_folder\"/justfile << 'EOF'" >> "$JUST_HOME"/bin/baldwin.sh
-  cat < "$JUST_HOME"/justfile >> "$JUST_HOME"/bin/baldwin.sh
-  echo "EOF" >> "$JUST_HOME"/bin/baldwin.sh
-  echo "    [02/05] Created $JUST_HOME/bin/baldwin.sh."
-  chmod +x "$JUST_HOME"/bin/baldwin.sh
-  echo "    [03/05] Made $JUST_HOME/bin/baldwin.sh executable."
-  rm -r "$JUST_HOME"/output/baldwin.sh
-  "$JUST_HOME"/bin/baldwin.sh -o "$JUST_HOME"/output/baldwin.sh
-  echo "    [04/05] Created $JUST_HOME/output/baldwin.sh/justfile."
-  if cmp -s "$JUST_HOME"/justfile "$JUST_HOME"/output/baldwin.sh/justfile; then
-    echo "    [05/05] Compared output of 'baldwin.sh' with the original justfile. No difference (succes!)."
-  else
-    echo "    [05/05] Compared output of 'baldwin.sh' with the original justfile. Not the same (failure! - this never happens)."
-  fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # creates a backup of only the output folder in $PWD/backup
 output:
   #!/usr/bin/env bash
@@ -360,42 +256,70 @@ _depscan:
     echo "  !!! The source code directory '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# detects secrets like passwords, API keys, and tokens in '/src'
-gitleaks:
+# installs 'gitleaks' using Homebrew. Needs Internet access.
+_gitleaks-brew: _homebrew
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start Gitleaks."
-  mkdir -p "$JUST_HOME"/output/{gitleaks,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'gitleaks'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
+  else
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    brew install gitleaks  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_gitleaks_installation.log
+  fi
+  gitleaks_version=$(gitleaks --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'gitleaks' ($gitleaks_version)."
+# detects secrets like passwords, API keys, and tokens in '/src'
+gitleaks: _gitleaks-brew
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start Gitleaks."
+  mkdir -p "$JUST_HOME"/output/gitleaks && \
+    mkdir -p "$JUST_HOME"/logs/gitleaks && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no-results} && \
+    mkdir -p "$JUST_HOME"/src && \
+    echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
-    TEMP_FOLDER="${TEMP_DIR##*/}"
-    if docker info > /dev/null 2>&1; then
-      docker run --rm -v "$JUST_HOME"/src:/path -v "$JUST_HOME"/output/gitleaks:/baldwin-report ghcr.io/gitleaks/gitleaks:latest dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path /baldwin-report/"$dt"_gitleaks.sarif /path
-      echo "    [02/04] Ran GITLEAKS with SARIF output."
-      rm -f "$JUST_HOME"/output/sarif/*gitleaks.sarif && echo "    [03/04] Removed earlier KICS SARIF output from '/output/sarif' folder."
-      cp "$JUST_HOME"/output/gitleaks/"$dt"_gitleaks.sarif "$JUST_HOME"/output/sarif/"$dt"_gitleaks.sarif && echo "    [04/04] Copied SARIF results to '/output/sarif'."
-      touch "$JUST_HOME"/output/sarif/"$dt"_gitleaks.sarif && GITLEAKS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_gitleaks.sarif )
-    else
-      echo "  !!! Gitleaks uses docker, and it isn't running - please start docker and try again!"
-    fi
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    gitleaks dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME/src/" &>"$JUST_HOME"/logs/gitleaks/"$safe_dt"_gitleaks.sarif.log
+    echo "    [02/04] Ran GITLEAKS with SARIF output."
+    mv --force "$JUST_HOME"/output/sarif/*gitleaks.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
+      echo "    [03/04] Removed earlier KICS SARIF output from '/output/sarif' folder."
+    cp "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
+      echo "    [04/04] Copied SARIF results to '/output/sarif'."
+    touch "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
+      GITLEAKS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif)
   else
     echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
   fi
   if [ -z "${GITLEAKS_RESULTS:-}" ]; then
     GITLEAKS_RESULTS="0 (??)"
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $GITLEAKS_RESULTS findings."
-# installs Homebrew if not already installed (required by OWASP Noir installation). Needs Internet access.
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'gitleaks' run with $GITLEAKS_RESULTS findings."
+# installs Homebrew if not already installed.
 _homebrew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
+  source /home/baldwin/.bashrc
   if ! command -v brew >/dev/null 2>&1; then
     if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
       mkdir -p "$JUST_HOME"/logs/homebrew
     fi
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     export NONINTERACTIVE=1 && /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
+    echo >> /home/baldwin/.bashrc
+    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/baldwin/.bashrc
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    source /home/baldwin/.bashrc
+    sudo apt-get update && sudo apt-get install build-essential gcc
   fi
   brew_version=$(brew --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
@@ -403,7 +327,11 @@ _homebrew:
 kics:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
   USER_UID=$(id -u)
   USER_GID=$(id -g)
   mkdir -p "$JUST_HOME"/output/{kics,sarif} && mkdir -p "$JUST_HOME"/src/ && echo "    [01/07] Created work folders."
@@ -442,6 +370,7 @@ _noir-brew: _homebrew
   if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
     mkdir -p "$JUST_HOME"/logs/homebrew
   fi
+  source /home/baldwin/.bashrc
   if ! command -v brew >/dev/null 2>&1; then
     echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
   else
@@ -664,5 +593,109 @@ unpack:
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && tree -d -L 4 "$JUST_HOME"/src > "$JUST_HOME"/output/unpack/"$dt"_unpack_tree.txt
   else
     echo "  !!! No Source code archives (ZIP, 7Z or TAR.BZ2) found in '/input' folder."
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+# creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
+baldwin:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  mkdir -p "$JUST_HOME/bin" && mkdir -p "$JUST_HOME"/output/baldwin.sh && echo "    [01/05] Created work folders."
+  # shellcheck disable=SC1009,SC1073
+  cat << 'EOF' > "$JUST_HOME"/bin/baldwin.sh
+  #!/usr/bin/env bash
+
+  # ------ Variables ------
+  HOST_NAME="$(hostname)"
+  readonly HOST_NAME
+  progname="$(basename "$0")"
+  readonly progname
+
+  # ------ Helper Functions ------
+
+  # displays an error message and exit
+  die() {
+    echo ""
+    echo "$HOST_NAME $progname  Error: $1" >&2
+    echo ""
+    exit 1
+  }
+
+  # usage function
+  usage(){
+    cat << HEREDOC
+
+    Usage: $progname --output <path>
+
+    mandatory arguments:
+      -o, --output <path>     folder to be created, containing the "justfile"
+
+    optional arguments:
+      -h, --help              show this help message and exit
+
+  HEREDOC
+  }
+
+  # --- Main Script ---
+
+  # ------ Argument Parsing ------
+
+  # bail if no params
+
+  [ $# -eq 0 ] && usage && exit 1
+
+  # use getopt and store the output into $OPTS
+  # note the use of -o for the short options, --long for the long name options
+  # and a : for any option that takes a parameter
+
+  if ! OPTS=$(getopt --options="o:h" --longoptions="help,output:" --name "$progname" -- "$@"); then
+     echo "Error in command line arguments." >&2 ; usage; exit 1 ;
+  fi
+
+  eval set -- "$OPTS"
+  while true; do
+    case "$1" in
+      -h | --help ) usage; exit 0 ;;
+      -o | --output ) output_folder="$2"; shift 2 ;;
+      -- ) shift; break ;;
+      * ) break ;;
+    esac
+  done
+
+  shift "$(( OPTIND - 1 ))"
+  if [ -z "$output_folder" ]; then
+    die "Missing -o/--output parameter Use --help for usage."
+  fi
+
+  if [ -d "$output_folder" ]; then
+    die "Output folder already already exists. Please choose another location."
+  fi
+
+  mkdir -p "$output_folder"/input &>/dev/null || true
+
+  # check if output_ folder exists and is writeable
+  if [ ! -d "$output_folder" ]; then
+    die "Source folder '$output_folder' does not exist or is not a directory."
+  else
+    realpath_folder=$(realpath "$output_folder")
+    if [ ! -w "$realpath_folder" ]; then
+      die "Output folder '$output_folder' is not writable."
+    fi
+  fi
+  #shellcheck disable=SC1039
+  EOF
+  echo "cat > \"\$realpath_folder\"/justfile << 'EOF'" >> "$JUST_HOME"/bin/baldwin.sh
+  cat < "$JUST_HOME"/justfile >> "$JUST_HOME"/bin/baldwin.sh
+  echo "EOF" >> "$JUST_HOME"/bin/baldwin.sh
+  echo "    [02/05] Created $JUST_HOME/bin/baldwin.sh."
+  chmod +x "$JUST_HOME"/bin/baldwin.sh
+  echo "    [03/05] Made $JUST_HOME/bin/baldwin.sh executable."
+  rm -r "$JUST_HOME"/output/baldwin.sh
+  "$JUST_HOME"/bin/baldwin.sh -o "$JUST_HOME"/output/baldwin.sh
+  echo "    [04/05] Created $JUST_HOME/output/baldwin.sh/justfile."
+  if cmp -s "$JUST_HOME"/justfile "$JUST_HOME"/output/baldwin.sh/justfile; then
+    echo "    [05/05] Compared output of 'baldwin.sh' with the original justfile. No difference (succes!)."
+  else
+    echo "    [05/05] Compared output of 'baldwin.sh' with the original justfile. Not the same (failure! - this never happens)."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
