@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM mcr.microsoft.com/devcontainers/base:ubuntu
 # It is relatively straightforward to change to Debian/Kali. Been there, done that, got the T-Shirt.
 # Not going back, most 3rd party apps only support Ubuntu out of the box and my time is valuable.
 ENV USER_UID=1688

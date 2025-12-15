@@ -471,7 +471,7 @@ opengrep: _opengrep-wget
     echo "$dt [$HOST_NAME] [$progname] Start 'Opengrep' static analysis over sources in /src."
   mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && \
     mkdir -p "$JUST_HOME"/logs/opengrep && \
-    mkdir -p "$JUST_HOME"/sarif/{old,no_results} && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src/ && \
     echo "    [01/05] Created work folders."
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
