@@ -1,8 +1,7 @@
-FROM ubuntu:latest
+FROM ubuntu:24.04
 # It is relatively straightforward to change to Debian/Kali. Been there, done that, got the T-Shirt.
 # Not going back, most 3rd party apps only support Ubuntu out of the box and my time is valuable.
-# do not change USER_UID/USER_GUID since plenty of badly written docker/container software only works with UID 1000. Sigh.
-ENV USER_UID=1000
+ENV USER_UID=1688
 ENV USER_GID=$USER_UID
 # docker uses "sh" by default, we want bash, since we need some buildin commands which might not not be buildin with lesser shells.
 SHELL ["/bin/bash", "-c"]
@@ -82,29 +81,6 @@ RUN og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases
        then wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_aarch64 ; \
        else wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_x86 ; \
        fi && sudo chmod a+x /usr/local/bin/opengrep || true
-
-# Installing Docker
-RUN install -m 0755 -d /etc/apt/keyrings \
-    && curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc \
-    && chmod a+r /etc/apt/keyrings/docker.asc
-
-RUN echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu \
-  $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | \
-  tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-RUN export DEBIAN_FRONTEND=noninteractive && apt-get update \
-    && apt-get -y install --no-install-recommends \
-        docker-ce \
-        docker-ce-cli \
-        containerd.io \
-        docker-buildx-plugin \
-        docker-compose-plugin
-
-# Delete default "ubuntu/vscode" user, if it exists. Be in control.
-# TODO find and wipe all "default" users. How?
-RUN if id "ubuntu" &>/dev/null; then deluser --remove-home ubuntu; fi
-RUN if id "vcode" &>/dev/null; then deluser --remove-home vscode; fi
 
 # Create the user, add to docker group
 RUN groupadd --non-unique --gid $USER_GID $USER_NAME \

@@ -361,7 +361,7 @@ gitleaks: _gitleaks-brew
     echo "$dt [$HOST_NAME] [$progname] Start Gitleaks."
   mkdir -p "$JUST_HOME"/output/gitleaks && \
     mkdir -p "$JUST_HOME"/logs/gitleaks && \
-    mkdir -p "$JUST_HOME"/output/sarif/{old,no-results} && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
@@ -373,6 +373,9 @@ gitleaks: _gitleaks-brew
       echo "    [03/04] Removed earlier KICS SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
       echo "    [04/04] Copied SARIF results to '/output/sarif'."
+    if ! command -v jq >/dev/null 2>&1; then
+      sudo apt install jq
+    fi
     touch "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
       GITLEAKS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif)
   else
@@ -398,7 +401,7 @@ _homebrew:
     echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/baldwin/.bashrc
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     source /home/baldwin/.bashrc
-    sudo apt-get update && sudo apt-get install build-essential gcc
+    sudo apt-get -y update && sudo apt-get -y install build-essential gcc
   fi
   brew_version=$(brew --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
@@ -415,7 +418,7 @@ kics:
   USER_GID=$(id -g)
     mkdir -p "$JUST_HOME"/output/kics && \
     mkdir -p "$JUST_HOME"/logs/kics && \
-    mkdir -p "$JUST_HOME"/output/sarif/{old,no-results} && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
@@ -478,7 +481,7 @@ noir: _noir-brew
     echo "$dt [$HOST_NAME] [$progname] Start run OWASP Noir to identify the attack surface."
   mkdir -p "$JUST_HOME"/output/noir && \
     mkdir -p "$JUST_HOME"/logs/noir && \
-    mkdir -p "$JUST_HOME"/output/sarif/{old,no-results} && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
@@ -496,20 +499,67 @@ noir: _noir-brew
   if [ -z "${NOIR_RESULTS:-}" ]; then
     NOIR_RESULTS="0 (??)"
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run OWASP Noir with $NOIR_RESULTS findings."
-# runs Opengrep over sources in '/src'
-opengrep:
+  noir_version=$(noir --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
+# verifies installation of 'Opengrep'
+_opengrep-wget:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'opengrep'."
+  if ! command -v wget >/dev/null 2>&1; then
+    sudo apt install wget
+  fi
+  if ! command -v git >/dev/null 2>&1; then
+    sudo apt install wget
+  fi
+  if ! command -v opengrep >/dev/null 2>&1; then
+    echo "    [01/02] Installing 'Opengrep'."
+    og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') && \
+      if [[ -n "$og_version" && "$arch" == *arm* ]] ; \
+       then wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_aarch64 ; \
+       else wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_x86 ; \
+      fi && \
+      sudo chmod a+x /usr/local/bin/opengrep || true
+  else
+    echo "    [01/02] 'Opengrep' is already installed."
+  fi
+  mkdir -p "$JUST_HOME"/data
+  if [[ -d "$JUST_HOME/data/opengrep-rules" ]]; then
+    echo "    [02/02] 'opengrep-rules' are already installed."
+  else
+    echo "    [02/02] Installing 'opengrep-rules'."
+    cd "$JUST_HOME"/data
+    sudo rm -rf "$JUST_HOME"/data/opengrep-rules || true
+    git clone --quiet --depth 1 https://github.com/opengrep/opengrep-rules.git &>/dev/null
+    if cd opengrep-rules; then # https://unicolet.blogspot.com/2025/04/opengrep-quickstart.html
+      rm -rf .git
+      rm -rf .github
+      rm -rf .pre-commit-config.yaml
+      rm -rf template.yaml
+      find . -type f -not -iname "*.yaml" -delete
+    fi
+  fi
+  og_version=$(opengrep --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Opengrep' (Opengrep $og_version)."
+# runs Opengrep static analysis over sources in '/src'
+opengrep: _opengrep-wget
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start 'Opengrep' static analysis over sources in /src."
   mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && \
     mkdir -p "$JUST_HOME"/logs/opengrep && \
+    mkdir -p "$JUST_HOME"/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src/ && \
     echo "    [01/05] Created work folders."
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
@@ -519,7 +569,7 @@ opengrep:
       --exclude=tests \
       --text \
       --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.txt
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt
     echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
     opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
@@ -532,10 +582,11 @@ opengrep:
       --exclude=tests \
       --sarif \
       --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif
     echo "    [03/05] Ran opengrep and created SARIF output file (only ERROR and WARNING levels)."
-    rm -f "$JUST_HOME"/output/sarif/*opengrep.sarif && echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
-    cp "$JUST_HOME"/output/opengrep/"$dt"_opengrep.sarif "$JUST_HOME"/output/sarif/
+    mv --force "$JUST_HOME"/output/sarif/*opengrep.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
+      echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
+    cp "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif "$JUST_HOME"/output/sarif/
     echo "    [05/05] Copied SARIF results to '/output/sarif' folder."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
@@ -543,11 +594,12 @@ opengrep:
   if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
-  touch "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_opengrep.sarif )
+  touch "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif )
   if [ -z "${OPENGREP_RESULTS:-}" ]; then
     OSV_RESULTS="0 (??)"
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OPENGREP_RESULTS findings."
+  og_version=$(opengrep --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
 # runs Google OSV scanner for SCA over sources in '/src'
 osv-scanner:
   #!/usr/bin/env bash
@@ -559,7 +611,13 @@ osv-scanner:
       if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
         mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
       fi
-      mkdir -p "$JUST_HOME"/output/{osv,sarif} && mkdir -p "$JUST_HOME"/logs/osv && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
+      if ! command -v jq >/dev/null 2>&1; then
+        sudo apt install jq
+      fi
+      mkdir -p "$JUST_HOME"/output/{osv,sarif} && \
+        mkdir -p "$JUST_HOME"/logs/osv && \
+        mkdir -p "$JUST_HOME"/src/ && \
+        echo "    [01/04] Created work folders."
       docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log  > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
       echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
       docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
@@ -580,7 +638,7 @@ osv-scanner:
   if [ -z "${OSV_RESULTS:-}" ]; then
     OSV_RESULTS="0 (??)"
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $OSV_RESULTS findings."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'opengrep' run with $OSV_RESULTS findings."
 # calculates SHA256 hash of the input source archives
 sha256:
   #!/usr/bin/env bash
@@ -619,7 +677,7 @@ strix:
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
       cd "$JUST_HOME"/output/strix
-      strix --target "$JUST_HOME"/src || true
+      strix --target "$JUST_HOME"/src --instruction "Always perform static analysis first." || true
       echo "    [02/07] Ran STRIX."
     else
       echo "  !!! STRIX uses docker, and it isn't running - please start docker and try again!"
