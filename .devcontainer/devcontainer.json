@@ -26,6 +26,7 @@
 		"vscode": {
 			"extensions": [
 				"bierner.markdown-mermaid",
+				"github.vscode-pull-request-github",
 				"mads-hartmann.bash-ide-vscode",
 				"mechatroner.rainbow-csv",
 				"ms-vscode-remote.vscode-remote-extensionpack",
