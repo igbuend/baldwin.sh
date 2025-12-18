@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 export SHELL="/bin/bash"
 export DOTNET_CLI_TELEMETRY_OPTOUT="1"
+export HOMEBREW_NO_ANALYTICS=1
 export JUST_HOME="$PWD"
 export USERNAME=baldwin
 export USER_UID=""
@@ -38,6 +39,7 @@ pnpm add -g @google/gemini-cli
 sudo chown -R "$(whoami)":"$(whoami)" "$HOME"/.local
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}
+mkdir -p "$JUST_HOME"/logs/script
 
 # opengrep data
 

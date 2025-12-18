@@ -189,6 +189,7 @@ upgrade:
   fi
   sudo apt update -y && sudo apt upgrade -y
   brew update && brew outdated && brew upgrade && brew cleanup
+  pipx upgrade-all
   arch=$(uname -m)
   if [[ "$arch" == *arm* ]]; then
     sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_arm64
@@ -218,7 +219,7 @@ upgrade:
     fi
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
-  pnpm add -g @cyclonedx/cdxgen retire @google/gemini-cli
+  pnpm update
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
@@ -370,7 +371,7 @@ gitleaks: _gitleaks-brew
     gitleaks dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME/src/" &>"$JUST_HOME"/logs/gitleaks/"$safe_dt"_gitleaks.sarif.log
     echo "    [02/04] Ran GITLEAKS with SARIF output."
     mv --force "$JUST_HOME"/output/sarif/*gitleaks.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
-      echo "    [03/04] Removed earlier KICS SARIF output from '/output/sarif' folder."
+      echo "    [03/04] Removed earlier GITLEAKS SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
       echo "    [04/04] Copied SARIF results to '/output/sarif'."
     if ! command -v jq >/dev/null 2>&1; then
@@ -401,6 +402,7 @@ _homebrew:
     echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/baldwin/.bashrc
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     source /home/baldwin/.bashrc
+    brew analytics off
     sudo apt-get -y update && sudo apt-get -y install build-essential gcc
   fi
   brew_version=$(brew --version)
@@ -552,7 +554,7 @@ opengrep: _opengrep-wget
     echo "$dt [$HOST_NAME] [$progname] Start 'Opengrep' static analysis over sources in /src."
   mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && \
     mkdir -p "$JUST_HOME"/logs/opengrep && \
-    mkdir -p "$JUST_HOME"/sarif/{old,no_results} && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src/ && \
     echo "    [01/05] Created work folders."
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
@@ -596,7 +598,7 @@ opengrep: _opengrep-wget
   fi
   touch "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif )
   if [ -z "${OPENGREP_RESULTS:-}" ]; then
-    OSV_RESULTS="0 (??)"
+    OPENGREP_RESULTS="0 (??)"
   fi
   og_version=$(opengrep --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
