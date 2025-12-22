@@ -648,7 +648,7 @@ unpack:
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
-      7z e "$JUST_HOME"/input/*.7z -o"$JUST_HOME"/src/
+      7z x "$JUST_HOME"/input/*.7z -o"$JUST_HOME"/src/
       echo "    [03/03] Unzipped 7Z archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.tar.bz2 1> /dev/null 2>&1; then
