@@ -96,7 +96,7 @@ doit:
 gemini:
   gemini
 # upgrades Ubuntu and all seperately installed tools
-upgrade:
+upgrade: _homebrew
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start update required tools."
@@ -107,7 +107,7 @@ upgrade:
     echo "  !!! user cannot run passwordless sudo"
   fi
   sudo apt update -y && sudo apt upgrade -y
-  brew update && brew outdated && brew upgrade && brew cleanup
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew update && brew outdated && brew upgrade && brew cleanup
   pipx upgrade-all
   arch=$(uname -m)
   if [[ "$arch" == *arm* ]]; then
@@ -138,7 +138,7 @@ upgrade:
     fi
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
-  pnpm update
+  # pnpm update
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
@@ -152,8 +152,6 @@ upgrade:
     echo "Checkmarx KICS version: $(docker run --quiet --rm docker.io/checkmarx/kics version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
     docker pull ghcr.io/google/osv-scanner:latest
     echo "Google osv-scanner version: $(docker run --quiet --rm ghcr.io/google/osv-scanner --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-    docker pull docker.io/trufflesecurity/trufflehog:latest
-    echo "Trufflesecurity truffelhog version: $(docker run --quiet --rm docker.io/trufflesecurity/trufflehog --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
   else
     echo "Upgrade uses docker, and it isn't running - please start docker and try again!"
   fi
@@ -650,7 +648,7 @@ unpack:
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
-      7z e "$JUST_HOME"/input/*.7z -o"$JUST_HOME"/src/
+      7z x "$JUST_HOME"/input/*.7z -o"$JUST_HOME"/src/
       echo "    [03/03] Unzipped 7Z archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.tar.bz2 1> /dev/null 2>&1; then
