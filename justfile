@@ -92,9 +92,55 @@ doit:
   just opengrep
   just noir
   just csv
+# installs Google gemini-cli and usefull extensions if not yet installed
+_gemini-pnpm:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."
+  if ! command -v gemini >/dev/null 2>&1; then
+    if ! [ -d "$JUST_HOME/logs/gemini/" ] ; then
+      mkdir -p "$JUST_HOME"/logs/gemini
+    fi
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    pnpm add -g @google/gemini-cli &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini_installation.log
+  fi
+  extensions=$(gemini extensions list)
+  if [[ "$extensions" == *"gemini-cli-security"* ]]; then
+    echo "  + Found extension 'gemini-cli-security'"
+  else
+    echo "  + Installing extension 'gemini-cli-security'"
+    gemini extensions install https://github.com/gemini-cli-extensions/security --consent &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini-cli-security_installation.log
+  fi
+  if [[ "$extensions" == *"code-review"* ]]; then
+    echo "  + Found extension 'code-review'"
+  else
+    echo "  + Installing extension 'code-review'"
+    gemini extensions install https://github.com/gemini-cli-extensions/code-review --consent &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini-cli-code-review_installation.log
+  fi
+  if [[ "$extensions" == *"conductor"* ]]; then
+    echo "  + Found extension 'conductor'"
+  else
+    echo "  + Installing extension 'conductor'"
+    gemini extensions install https://github.com/gemini-cli-extensions/conductor --consent &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini-cli-conductor_installation.log
+  fi
+  gemini_version=$(gemini --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'gemini-cli' ($gemini_version)."
 # opens Google gemini-cli
-gemini:
+gemini: _gemini-pnpm
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start interactive session with 'Google gemini-cli'."
   gemini
+  gemini_version=$(gemini --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'gemini-cli' ($gemini_version)."
 # upgrades Ubuntu and all seperately installed tools
 upgrade: _homebrew
   #!/usr/bin/env bash
@@ -139,6 +185,7 @@ upgrade: _homebrew
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
   # pnpm update
+  gemini extensions update --all
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
