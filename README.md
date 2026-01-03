@@ -45,7 +45,9 @@ The following tasks are automated, thanks to the [Just command runner](https://g
 
 - **software composition analysis (SCA)**: reports on vulnerable dependencies using [Google OSV-scanner](https://github.com/google/osv-scanner).
 
-- **search for hardcoded secrets**: reports on hardcoded secrets in the code using [TruffleHog](https://github.com/trufflesecurity/trufflehog).
+- **search for hardcoded secrets**: reports on hardcoded secrets in the code using [Gitleaks](https://github.com/gitleaks/gitleaks).
+
+- **analysis of attack surface**: performs attack surfaceanalysis with [Owasp Noir](https://github.com/owasp-noir/noir).
 
 All this is done in a dedicated folder, with a specific structure. **baldwin.sh" ensures that software is updated when needed, and results are consistent. It is easy to share findings with your customer or with colleagues.
 
@@ -241,12 +243,11 @@ graph TD
     D --> E(just appinspector);
     E --> F(just osv-scanner);
     F --> G(just kics);
-    G --> H(just trufflehog);
+    G --> H(just gitleaks);
     H --> I(just opengrep);
-    I --> J(just depscan);
+    I --> J(just noir);
+    J --> K(just csv);
 ```
-
-
 
 ## Overview of "just" Commands
 
@@ -257,6 +258,7 @@ graph TD
 | `output` | Creates a backup of only the output folder in `/backup` |
 | `input` | Creates a backup of only the input folder in `/backup` |
 | `clean` | Empties all folders except `/data` and `/backup` folders |
+| `csv` | Creates CSV files or results in `/output/sharif` |
 | `empty` | Empties all folders including `/data` and `/backup` folders |
 | `do_fresh` | Runs everything, after upgrading Ubuntu and all tools |
 | `doit` | Runs everything, without upgrading Ubuntu or other tools |
@@ -265,11 +267,12 @@ graph TD
 | `appinspector` | Analyses technology with AppInspector tool over sources in `/src` |
 | `cloc` | Counts Lines of Code (LOC) for sources in `/src` |
 | `depscan` | performs SCA with OWASP depscan over sources in `/src` |
+| `gitleaks` | Searches for secrets with Gitleaks |
 | `kics` | Checks cloud config (using KICS) over sources in `/src` |
 | `opengrep` | Runs Opengrep over sources in `/src` |
 | `osv-scanner` | Runs Google OSV scanner for SCA over sources in `/src` |
 | `sha256` | Calculates SHA256 hash of source archives in `/input` |
-| `trufflehog` | Searches for secrets with TruffleHog |
+| `_trufflehog` | Searches for secrets with TruffleHog (legacy) |
 | `unpack` | Unzips source archive(s) from `/input` into `/src` |
 
 ## Create your Personalized baldwin.sh

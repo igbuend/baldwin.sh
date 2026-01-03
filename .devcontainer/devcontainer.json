@@ -1,16 +1,12 @@
 {
 	"name": "malpertus",
-	"privileged": true,
+	"privileged": false,
 	"build": {
 		"dockerfile": "Dockerfile"
 	},
 	"runArgs": [
 		"--network=host",
 		"--hostname=malpertus"
-	],
-	"capAdd": [
-		"NET_RAW",
-		"NET_ADMIN"
 	],
 	"remoteUser": "baldwin",
 	"mounts": [
