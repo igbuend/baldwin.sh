@@ -17,10 +17,17 @@ backup:
   set -euo pipefail
   JUST_HOME="$PWD" && JUST_BASE="${JUST_HOME##*/}" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/{backup,tmp} && tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && echo "    [01/03] Created work folders."
-  tar --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 --exclude="$JUST_HOME/"data --exclude="$JUST_HOME/"backup --exclude="$JUST_HOME"/tmp "$JUST_HOME"
-  cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2
+  tar --use-compress-program="pigz --best" \
+    -cf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
+    --exclude="$JUST_HOME/"data \
+    --exclude="$JUST_HOME/"backup \
+    --exclude="$JUST_HOME"/tmp "$JUST_HOME" \
+    && echo "    [02/03] Created backup archive."
+  cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ \
+    && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
+    && echo "    [03/03] Moved archive to /archive folder."
   rm -rf "$tempfolder" || true
-  confirm="Backup is /backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
+  confirm="Backup is /backup/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
 # creates a backup of only the output folder in $PWD/backup
 output:
@@ -189,19 +196,6 @@ upgrade: _homebrew
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-  echo "" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-  # shellcheck disable=SC2129 # fix later
-  echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-  echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-  echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-  if docker info > /dev/null 2>&1; then
-    docker pull docker.io/checkmarx/kics:latest
-    echo "Checkmarx KICS version: $(docker run --quiet --rm docker.io/checkmarx/kics version)" >> "$JUST_HOME/logs/dpkg/$dt"_dpkg.log
-    docker pull ghcr.io/google/osv-scanner:latest
-    echo "Google osv-scanner version: $(docker run --quiet --rm ghcr.io/google/osv-scanner --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-  else
-    echo "Upgrade uses docker, and it isn't running - please start docker and try again!"
-  fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # analyses technology with AppInspector tool over sources in '/src'
 appinspector:
@@ -210,13 +204,36 @@ appinspector:
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [02/06] Ran appinspector and created HTML output."
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [03/06] Ran appinspector and created SARIF output."
-    appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ &>/dev/null && echo "    [04/06] Ran appinspector and created TXT output."
-    rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif || true && echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
+    echo "    [02/06] Running AppInspector (HTML)..."
+    if appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log >/dev/null; then
+      echo "    [02/06] AppInspector HTML output completed successfully."
+    else
+      echo "  !!! WARNING: AppInspector HTML output completed with errors. Check $JUST_HOME/logs/appinspector/"$dt"_appinspector_html.log"
+    fi
+    echo "    [03/06] Running AppInspector (SARIF)..."
+    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log >/dev/null; then
+      echo "    [03/06] AppInspector SARIF output completed successfully."
+    else
+      echo "  !!! WARNING: AppInspector SARIF output completed with errors. Check $JUST_HOME/logs/appinspector/"$dt"_appinspector_sarif.log"
+    fi
+    if [ ! -f "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif ]; then
+      echo "  !!! ERROR: AppInspector did not create SARIF output file."
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no SARIF output."
+      exit 1
+    fi
+    echo "    [04/06] Running AppInspector (TXT)..."
+    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log >/dev/null; then
+      echo "    [04/06] AppInspector TXT output completed successfully."
+    else
+      echo "  !!! WARNING: AppInspector TXT output completed with errors. Check $JUST_HOME/logs/appinspector/"$dt"_appinspector_text.log"
+    fi
+    rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif 2>/dev/null || true
+    echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
   else
-    echo "  !!! The source code folder is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! ERROR: The source code folder is empty. Please unpack the sources with 'just unpack'."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # show Lines of Code (LOC) for sources in '/src'
@@ -323,31 +340,41 @@ gitleaks: _gitleaks-brew
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
     echo "$dt [$HOST_NAME] [$progname] Start Gitleaks."
   mkdir -p "$JUST_HOME"/output/gitleaks && \
     mkdir -p "$JUST_HOME"/logs/gitleaks && \
     mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
-    echo "    [01/04] Created work folders."
+    echo "    [01/05] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    gitleaks dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME/src/" &>"$JUST_HOME"/logs/gitleaks/"$safe_dt"_gitleaks.sarif.log
-    echo "    [02/04] Ran GITLEAKS with SARIF output."
-    mv --force "$JUST_HOME"/output/sarif/*gitleaks.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
-      echo "    [03/04] Removed earlier GITLEAKS SARIF output from '/output/sarif' folder."
+    echo "    [02/05] Running Gitleaks scan..."
+    if gitleaks dir --no-banner --no-color --ignore-gitleaks-allow --exit-code 0 --report-format sarif --report-path "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME/src/" &>>"$JUST_HOME"/logs/gitleaks/"$safe_dt"_gitleaks.sarif.log; then
+      echo "    [03/05] Gitleaks scan completed successfully."
+    else
+      echo "  !!! WARNING: Gitleaks completed with errors. Check $JUST_HOME/logs/gitleaks/"$safe_dt"_gitleaks.sarif.log"
+    fi
+    if [ ! -f "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif ]; then
+      echo "  !!! ERROR: Gitleaks did not create SARIF output file."
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'gitleaks' run with ERROR - no output."
+      exit 1
+    fi
+    mv --force "$JUST_HOME"/output/sarif/*gitleaks.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+    echo "    [04/05] Removed earlier GITLEAKS SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/gitleaks/"$safe_dt"_gitleaks.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
-      echo "    [04/04] Copied SARIF results to '/output/sarif'."
+      echo "    [05/05] Copied SARIF results to '/output/sarif'."
     if ! command -v jq >/dev/null 2>&1; then
       sudo apt install jq
     fi
-    touch "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif && \
-      GITLEAKS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif)
+    GITLEAKS_RESULTS=0
+    if [ -f "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif ]; then
+      GITLEAKS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_gitleaks.sarif 2>/dev/null || echo "0")
+    fi
   else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
-  fi
-  if [ -z "${GITLEAKS_RESULTS:-}" ]; then
-    GITLEAKS_RESULTS="0 (??)"
+    echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'gitleaks' run with $GITLEAKS_RESULTS findings."
 # installs Homebrew if not already installed.
@@ -379,6 +406,7 @@ kics:
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
     echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
   USER_UID=$(id -u)
   USER_GID=$(id -g)
@@ -394,26 +422,51 @@ kics:
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     if docker info > /dev/null 2>&1; then
-      docker run --rm -t -u "$USER_UID":"$USER_GID" -v "$JUST_HOME/src/":/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore || true
-      echo "    [02/07] Ran KICS with output in temporary folder."
+      echo "    [02/07] Running KICS scan..."
+      if docker run --rm -t -u "$USER_UID":"$USER_GID" -v "$JUST_HOME/src/":/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore; then
+        echo "    [02/07] KICS scan completed successfully."
+      else
+        echo "  !!! WARNING: KICS scan completed with errors or findings. Check logs for details."
+      fi
+      if [ ! -f "$TEMP_DIR"/kics-result.sarif ]; then
+        echo "  !!! ERROR: KICS did not create SARIF output file. Check logs at $JUST_HOME/logs/kics/"
+        rm -rf "$TEMP_DIR" 2>&1 || true
+        if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+          mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+        fi
+        printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no output created."
+        exit 1
+      fi
       cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
-      mv --force "$JUST_HOME"/output/sarif/*kics.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
-        echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
-      printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+      mv --force "$JUST_HOME"/output/sarif/*kics.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+      echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
       cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif && \
         echo "    [05/07] Copied SARIF results to '/output/sarif'."
       if cd "$JUST_HOME"/output/kics/; then
-        mv -T $TEMP_FOLDER $safe_dt && echo "    [06/07] Renamed output folder to current date-time."
+        mv -T "$TEMP_FOLDER" "$safe_dt" && echo "    [06/07] Renamed output folder to current date-time."
       fi
-      rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 && echo "    [07/07] Removed temporary folder."
+      rm -rf "$TEMP_DIR" 2>&1 || true
+      echo "    [07/07] Removed temporary folder."
     else
-      echo "  !!! KICS uses docker, and it isn't running - please start docker and try again!"
+      echo "  !!! ERROR: KICS uses docker, and it isn't running - please start docker and try again!"
+      if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+        mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+      fi
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
+      exit 1
     fi
   else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+      mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+    fi
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
-  touch "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif && \
-    KICS_RESULTS=0 && KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif )
+  KICS_RESULTS=0
+  if [ -f "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif ]; then
+    KICS_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif 2>/dev/null || echo "0")
+  fi
   if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
@@ -441,9 +494,9 @@ noir: _noir-brew
   set -euo pipefail
   JUST_HOME="$PWD" && \
     HOST_NAME="$(hostname)" && \
-    NOIR_RESULTS="zero" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
     echo "$dt [$HOST_NAME] [$progname] Start run OWASP Noir to identify the attack surface."
   mkdir -p "$JUST_HOME"/output/noir && \
     mkdir -p "$JUST_HOME"/logs/noir && \
@@ -452,20 +505,33 @@ noir: _noir-brew
     echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    noir -b "$JUST_HOME"/src -T --format sarif --no-color -o "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif &>"$JUST_HOME"/logs/noir/"$safe_dt"_noir.sarif.log
-    noir_version=$(noir --version)
-    echo "    [02/04] Succesfully ran Noir $noir_version and created report in SARIF format."
-    mv --force "$JUST_HOME"/output/sarif/*noir.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && echo "    [03/04] Removed earlier NOIR SARIF output from '/output/sarif' folder."
+    echo "    [02/04] Running OWASP Noir scan..."
+    if noir -b "$JUST_HOME"/src -T --format sarif --no-color -o "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif 2>&1 | tee "$JUST_HOME"/logs/noir/"$safe_dt"_noir.sarif.log; then
+      noir_version=$(noir --version 2>/dev/null || echo "unknown")
+      echo "    [02/04] Successfully ran Noir $noir_version and created report in SARIF format."
+    else
+      echo "  !!! WARNING: Noir completed with errors. Check $JUST_HOME/logs/noir/"$safe_dt"_noir.sarif.log"
+    fi
+    if [ ! -f "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif ]; then
+      echo "  !!! ERROR: Noir did not create SARIF output file."
+      noir_version=$(noir --version 2>/dev/null || echo "unknown")
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'OWASP Noir' ($noir_version) run with ERROR - no output."
+      exit 1
+    fi
+    mv --force "$JUST_HOME"/output/sarif/*noir.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+    echo "    [03/04] Removed earlier NOIR SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif "$JUST_HOME"/output/sarif/ && echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
-    touch "$JUST_HOME"/output/sarif/"$safe_dt"_noir.sarif && NOIR_RESULTS=0 && NOIR_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_noir.sarif )
+    NOIR_RESULTS=0
+    if [ -f "$JUST_HOME"/output/sarif/"$safe_dt"_noir.sarif ]; then
+      NOIR_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_noir.sarif 2>/dev/null || echo "0")
+    fi
   else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources first with 'just unpack'."
+    echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources first with 'just unpack'."
+    noir_version=$(noir --version 2>/dev/null || echo "unknown")
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
-  if [ -z "${NOIR_RESULTS:-}" ]; then
-    NOIR_RESULTS="0 (??)"
-  fi
-  noir_version=$(noir --version)
+  noir_version=$(noir --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
 # verifies installation of 'Opengrep'
 _opengrep-wget:
@@ -515,6 +581,7 @@ opengrep: _opengrep-wget
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
     echo "$dt [$HOST_NAME] [$progname] Start 'Opengrep' static analysis over sources in /src."
   mkdir -p "$JUST_HOME"/output/{opengrep,sarif} && \
     mkdir -p "$JUST_HOME"/logs/opengrep && \
@@ -525,8 +592,8 @@ opengrep: _opengrep-wget
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+    echo "    [02/05] Running Opengrep TXT scan (all severities)..."
+    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
       --dataflow-traces \
@@ -535,9 +602,13 @@ opengrep: _opengrep-wget
       --exclude=tests \
       --text \
       --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt
-    echo "    [02/05] Ran opengrep and created TXT output file (all levels)."
-    opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt; then
+      echo "    [02/05] Opengrep TXT scan completed successfully."
+    else
+      echo "  !!! WARNING: Opengrep TXT scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_txt.log"
+    fi
+    echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
+    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
       --dataflow-traces \
@@ -548,23 +619,40 @@ opengrep: _opengrep-wget
       --exclude=tests \
       --sarif \
       --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif
-    echo "    [03/05] Ran opengrep and created SARIF output file (only ERROR and WARNING levels)."
-    mv --force "$JUST_HOME"/output/sarif/*opengrep.sarif "$JUST_HOME"/output/sarif/old/ &>/dev/null && \
-      echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
+      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif; then
+      echo "    [03/05] Opengrep SARIF scan completed successfully."
+    else
+      echo "  !!! WARNING: Opengrep SARIF scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_sarif.log"
+    fi
+    if [ ! -f "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif ]; then
+      echo "  !!! ERROR: Opengrep did not create SARIF output file."
+      if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+        mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+      fi
+      og_version=$(opengrep --version 2>/dev/null || echo "unknown")
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with ERROR - no SARIF output."
+      exit 1
+    fi
+    mv --force "$JUST_HOME"/output/sarif/*opengrep.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+    echo "    [04/05] Removed earlier OPENGREP SARIF output from '/output/sarif' folder."
     cp "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif "$JUST_HOME"/output/sarif/
     echo "    [05/05] Copied SARIF results to '/output/sarif' folder."
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
+    if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+      mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+    fi
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
   if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
-  touch "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif && OPENGREP_RESULTS=0 && OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif )
-  if [ -z "${OPENGREP_RESULTS:-}" ]; then
-    OPENGREP_RESULTS="0 (??)"
+  OPENGREP_RESULTS=0
+  if [ -f "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif ]; then
+    OPENGREP_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$safe_dt"_opengrep.sarif 2>/dev/null || echo "0")
   fi
-  og_version=$(opengrep --version)
+  og_version=$(opengrep --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
 # runs Google OSV scanner for SCA over sources in '/src'
 osv-scanner:
@@ -584,27 +672,57 @@ osv-scanner:
         mkdir -p "$JUST_HOME"/logs/osv && \
         mkdir -p "$JUST_HOME"/src/ && \
         echo "    [01/04] Created work folders."
-      docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log  > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md || true
-      echo "    [02/04] Ran osv-scanner and created MARKDOWN results."
-      docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif || true
-      echo "    [03/04] Ran osv-scanner and created SARIF results."
-      rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif || true
-      cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/ || true
+      echo "    [02/04] Running OSV-scanner (Markdown)..."
+      if docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md; then
+        echo "    [02/04] OSV-scanner Markdown output completed successfully."
+      else
+        osv_exit=$?
+        if [ $osv_exit -eq 1 ]; then
+          echo "    [02/04] OSV-scanner completed - vulnerabilities found (this is normal)."
+        else
+          echo "  !!! WARNING: OSV-scanner Markdown completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_markdown.log"
+        fi
+      fi
+      echo "    [03/04] Running OSV-scanner (SARIF)..."
+      if docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif; then
+        echo "    [03/04] OSV-scanner SARIF output completed successfully."
+      else
+        osv_exit=$?
+        if [ $osv_exit -eq 1 ]; then
+          echo "    [03/04] OSV-scanner SARIF completed - vulnerabilities found"
+        else
+          echo "  !!! WARNING: OSV-scanner SARIF completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_sarif.log"
+        fi
+      fi
+      if [ ! -f "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif ]; then
+        echo "  !!! ERROR: OSV-scanner did not create SARIF output file."
+        if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+          mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+        fi
+        printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with ERROR - no SARIF output."
+        exit 1
+      fi
+      rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif 2>/dev/null || true
+      cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/
       echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
-      touch "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif && OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif )
+      OSV_RESULTS=0
+      if [ -f "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif ]; then
+        OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif 2>/dev/null || echo "0")
+      fi
     else
-      echo "  !!! Google OSV uses docker, and it isn't running - please start docker and try again!"
+      echo "  !!! ERROR: Google OSV uses docker, and it isn't running - please start docker and try again!"
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
+      exit 1
     fi
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
   if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
     mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
   fi
-  if [ -z "${OSV_RESULTS:-}" ]; then
-    OSV_RESULTS="0 (??)"
-  fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'opengrep' run with $OSV_RESULTS findings."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with $OSV_RESULTS findings."
 # calculates SHA256 hash of the input source archives
 sha256:
   #!/usr/bin/env bash
@@ -639,17 +757,26 @@ strix:
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start STRIX."
   mkdir -p "$JUST_HOME"/output/strix && \
     mkdir -p "$JUST_HOME"/src/ && \
-    echo "    [01/07] Created work folders."
+    echo "    [01/02] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     if docker info > /dev/null 2>&1; then
       cd "$JUST_HOME"/output/strix
-      strix --target "$JUST_HOME"/src --instruction "Always perform static analysis first." || true
-      echo "    [02/07] Ran STRIX."
+      echo "    [02/02] Running STRIX AI-powered vulnerability detection..."
+      if strix --target "$JUST_HOME"/src --instruction "Always perform static analysis first."; then
+        echo "    [02/02] STRIX completed successfully."
+      else
+        echo "  !!! WARNING: STRIX completed with errors or found vulnerabilities."
+      fi
     else
-      echo "  !!! STRIX uses docker, and it isn't running - please start docker and try again!"
+      echo "  !!! ERROR: STRIX uses docker, and it isn't running - please start docker and try again!"
+      cd "$JUST_HOME"
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
+      exit 1
     fi
   else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
   fi
   cd "$JUST_HOME"
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
