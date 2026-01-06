@@ -197,8 +197,31 @@ upgrade: _homebrew
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+# Verifies installation of  Microsoft AppInspector
+_appinspector-install:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Microsoft AppInspector'."
+  if ! [ -d "$JUST_HOME/logs/appinspector/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/appinspector
+  fi
+  if ! command -v dotnet >/dev/null 2>&1; then
+    echo "  !!! dotnet not installed (will never happen, but I have a cat). Try installing it with 'just _dotnet'."
+  else
+    if ! command -v appinspector >/dev/null 2>&1; then
+      printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+      echo "hello"
+      dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI  &> "$JUST_HOME"/logs/appinspector/"$safe_dt"_dotnet_appinspector_installation.log
+    fi
+  fi
+  appinspector_version=$(appinspector --version || true)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'Microsoft Appinspector' ($appinspector_version)."
 # analyses technology with AppInspector tool over sources in '/src'
-appinspector:
+appinspector: _appinspector-install
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
@@ -382,7 +405,7 @@ _homebrew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
-  source /home/"$USER"/.bashrc\
+  source /home/"$USER"/.bashrc
   sudo apt -y update && sudo apt -y install build-essential curl gcc git ruby-full
   if ! command -v brew >/dev/null 2>&1; then
     if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
@@ -548,7 +571,7 @@ _opengrep-wget:
     echo "    [01/02] Installing 'Opengrep'."
     arch=$(uname -m)
     og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")') && \
-      if [[ -n "$og_version" && "$arch" == *arm* ]] ; \ # todo: don't sudo wget
+      if [[ -n "$og_version" && "$arch" == *arm* ]] ; \
        then sudo wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_aarch64 ; \
        else sudo wget --quiet --output-document /usr/local/bin/opengrep https://github.com/opengrep/opengrep/releases/download/"$og_version"/opengrep_manylinux_x86 ; \
       fi && \
