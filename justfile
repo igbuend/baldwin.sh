@@ -382,19 +382,19 @@ _homebrew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
-  source /home/baldwin/.bashrc
+  source /home/"$USER"/.bashrc\
+  sudo apt -y update && sudo apt -y install build-essential curl gcc git
   if ! command -v brew >/dev/null 2>&1; then
     if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
       mkdir -p "$JUST_HOME"/logs/homebrew
     fi
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     export NONINTERACTIVE=1 && /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
-    echo >> /home/baldwin/.bashrc
+    echo >> /home/"$USER"/.bashrc
     echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/baldwin/.bashrc
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    source /home/baldwin/.bashrc
+    source /home/"$USER"/.bashrc
     brew analytics off
-    sudo apt-get -y update && sudo apt-get -y install build-essential gcc
   fi
   brew_version=$(brew --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
