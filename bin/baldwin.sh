@@ -1140,34 +1140,22 @@ strix:
   fi
   cd "$JUST_HOME"
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# search for secrets with TruffleHog
-_trufflehog:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/trufflehog && echo "    [01/03] Created work folders."
-  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --no-color filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.txt
-      echo "    [02/03] Succesfully ran TruffleHog and created report in TXT format."
-      docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --json filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.json
-      echo "    [03/03] Succesfully ran TruffleHog and created report in JSON format."
-    else
-      echo "  !!! TruffleHog uses docker, and it isn't running - please start docker and try again!"
-    fi
-  else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
-  fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# unzips source archive(s) into '/src'
+# unpacks source archive(s) into '/src'
 unpack:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start unpacking source archives."
   # TODO it might just be possible that you received multiple different zip formats. Will unpack fine, but counter actions wrong.
   # TODO better would be to unpack each archive in a subfolder of 'src', maybe subfolder = archive file name
   # TODO check if archives not password protected / are not corrupted
-  mkdir -p "$JUST_HOME"/{src,input} && mkdir -p "$JUST_HOME"/output/unpack && echo "    [01/03] Created work folders."
+  echo "    [01/03] Creating work folders..."
+  mkdir -p "$JUST_HOME"/{src,input} && \
+    mkdir -p "$JUST_HOME"/output/unpack 
+  echo "    [02/03] Searching for sourcode archives in /input..."
   found=false
   for file in "$JUST_HOME"/input/*.{zip,7z,tar.bz}; do
     if [ -e "$file" ]; then
@@ -1176,7 +1164,6 @@ unpack:
     fi
   done
   if "$found"; then
-    echo "    [02/03] Found source code archives in '/input' folder."
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
       unzip -qq -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
@@ -1191,9 +1178,10 @@ unpack:
     fi
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && tree -d -L 4 "$JUST_HOME"/src > "$JUST_HOME"/output/unpack/"$dt"_unpack_tree.txt
   else
-    echo "  !!! No Source code archives (ZIP, 7Z or TAR.BZ2) found in '/input' folder."
+    echo "      ❌ No Source code archives (ZIP, 7Z or TAR.BZ2) found in '/input' folder."
   fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Finished unpacking archives."
 # creates '/bin/baldwin.sh' from the current "justfile" (currently Ubuntu only). Warning: overwrites existing!
 baldwin:
   #!/usr/bin/env bash
