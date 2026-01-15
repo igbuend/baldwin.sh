@@ -304,6 +304,7 @@ Malpertus is one of the myriad of spellings of the name of the lair of [**Reynar
 ## Future (depends on how much coffee I can afford)
 
 - v1.0 More consistent handling of errors/output and better documentation
+- v1.5 A lot more AI (although cor functionaltiy can still be used without AI)
 - v2.0 Automated vulnerability report of all output
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/igbuend)
@@ -311,3 +312,5 @@ Malpertus is one of the myriad of spellings of the name of the lair of [**Reynar
 ## Licensing
 
 The code in this project is licensed under the [MIT license](LICENSE).
+
+Some of the Claude skills are (modified) versions of the [Trail of Bits Skills Marketplace](https://github.com/trailofbits/skills). These skills are licensed under a [Creative Commons Attribution-ShareAlike 4.0 International License](https://creativecommons.org/licenses/by-sa/4.0/).

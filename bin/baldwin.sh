@@ -93,22 +93,30 @@ set dotenv-load := true
 default:
   @just --list
 # creates a backup of everything (except /data and /tmp) in '/backup'
-backup:
+backup: (_fix_deps "basename,cp,echo,mkdir,mktemp,pigz,printf,rm,tar")
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && JUST_BASE="${JUST_HOME##*/}" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/{backup,tmp} && tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && echo "    [01/03] Created work folders."
-  tar --use-compress-program="pigz --best" \
-    -cf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
-    --exclude="$JUST_HOME/"data \
-    --exclude="$JUST_HOME/"backup \
-    --exclude="$JUST_HOME"/tmp "$JUST_HOME" \
+  JUST_HOME="$PWD" && \
+    JUST_BASE="${JUST_HOME##*/}" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start full backup (except /data and /tmp folders)."
+  mkdir -p "$JUST_HOME"/{backup,tmp} && \
+    tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && \
+    echo "    [01/03] Created work folders."
+  tar -C "$JUST_HOME" --use-compress-program="pigz --best" \
+    -cf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
+    --exclude=data \
+    --exclude=backup \
+    --exclude=tmp . 1>/dev/null \
     && echo "    [02/03] Created backup archive."
-  cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ \
-    && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
+  cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ \
+    && rm "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
     && echo "    [03/03] Moved archive to /archive folder."
   rm -rf "$tempfolder" || true
-  confirm="Backup is /backup/"$dt"_"$JUST_BASE"_scr_backup.tar.bz2."
+  confirm="Backup is /backup/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
 # creates a backup of only the output folder in $PWD/backup
 output:
@@ -133,6 +141,240 @@ _input:
   rm -rf "$tempfolder" || true && echo "    [04/04] Removed temporary folder."
   confirm="Backup of 'input' directory is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_input.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
+# validates and installs necessary tools for Ubuntu LTS
+_fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
+  #!/usr/bin/env bash
+  # to fix broken Ubuntu installations at client.
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start dependency validation and installation."
+  mkdir -p "$JUST_HOME"/logs/fix_deps && echo "    [01/07] Created work folders."
+
+  bash_builtins=($(compgen -b))
+
+  # Ubuntu package mapping for common dependencies
+  declare -A ubuntu_packages=(
+    ["asciinema"]="asciinema"
+    ["basename"]="coreutils"
+    ["bats"]="bats"
+    ["bc"]="bc"
+    ["build-essential"]="build-essential"
+    ["cat"]="coreutils"
+    ["ca-certificates"]="ca-certificates"
+    ["coreutils"]="coreutils"
+    ["cp"]="coreutils"
+    ["cron"]="cron"
+    ["chmod"]="coreutils"
+    ["chown"]="coreutils"
+    ["cloc"]="cloc"
+    ["cp"]="coreutils"
+    ["curl"]="curl"
+    ["cut"]="coreutils"
+    ["date"]="coreutils"
+    ["df"]="coreutils"
+    ["dialog"]="dialog"
+    ["dir"]="coreutils"
+    ["dirmngr"]="dirmngr"
+    ["dnsutils"]="dnsutils"
+    ["dos2unix"]="dos2unix"
+    ["dotnet-sdk-8.0"]="dotnet-sdk-8.0"
+    ["du"]="coreutils"
+    ["echo"]="coreutils"
+    ["false"]="coreutils"
+    ["fuse-overlayfs"]="fuse-overlayfs"
+    ["gcc"]="gcc"
+    ["gh"]="gh"
+    ["git"]="git"
+    ["gawk"]="gawk"
+    ["gnupg2"]="gnupg2"
+    ["golang"]="golang-go"
+    ["go"]="golang-go"
+    ["jq"]="jq"
+    ["ln"]="coreutis"
+    ["locales"]="locales"
+    ["ls"]="coreutils"
+    ["lsb-release"]="lsb-release"
+    ["make"]="make"
+    ["mktemp"]="coreutils"
+    ["mv"]="coreutils"
+    ["mkdir"]="coreutils"
+    ["net-tools"]="net-tools"
+    ["node"]="nodejs"
+    ["nmap"]="nmap"
+    ["npm"]="npm"
+    ["passt"]="passt"
+    ["pkg-config"]="pkg-config"
+    ["pnpm"]="pnpm"
+    ["pigz"]="pigz"
+    ["pipx"]="pipx"
+    ["pre-commit"]="pre-commit"
+    ["printf"]="coreutils"
+    ["pwd"]="coreutils"
+    ["python3"]="python3"
+    ["python3-pip"]="python3-pip"
+    ["python3-venv"]="python3-venv"
+    ["ripgrep"]="ripgrep"
+    ["rm"]="coreutils"
+    ["rmdir"]="coreutils"
+    ["shellcheck"]="shellcheck"
+    ["shuff"]="coreutils"
+    ["slirp4netns"]="slirp4netns"
+    ["tar"]="tar"
+    ["tee"]="coreutils"
+    ["touch"]="coreutils"
+    ["tr"]="coreutils"
+    ["tree"]="tree"
+    ["true"]="coreutils"
+    ["unzip"]="unzip"
+    ["uidmap"]="uidmap"
+    ["uniq"]="coreutils"
+    ["wc"]="coreutils"
+    ["wget"]="wget"
+    ["whoami"]="coreutils"
+    ["xargs"]="findutils"
+    ["yq"]="yq"
+    ["zip"]="zip"
+    ["7z"]="p7zip-full"
+  )
+
+  deps={{DEPS}}
+
+  echo "    [02/07] Parsing dependency list..."
+  echo "      📦 Dependencies to validate: $deps"
+  echo "    [03/07] Checking each dependency..."
+
+  found_builtins=()
+  found_path=()
+  to_install=()
+  unknown_to_install=()
+
+  IFS=',' read -ra deps_array <<< "$deps"
+
+  for dep in "${deps_array[@]}"; do
+    # Remove whitespace and quotes
+    dep=$(echo "$dep" | xargs)
+    if [ -z "$dep" ]; then
+      continue
+    fi
+
+    # Check if it is a bash builtin
+    if [[ " ${bash_builtins[*]} " =~ " ${dep} " ]]; then
+      echo "      ✅ $dep - built into bash shell"
+      found_builtins+=("$dep")
+      continue
+    else
+      # Check if command exists in path
+      if command -v "$dep" >/dev/null 2>&1; then
+        echo "      ✅ $dep - found in path"
+        found_path+=("$dep")
+      else
+        # echo "      ⚠️   $dep - not found in path"
+        # Check if it's a Ubuntu package that might not be in PATH
+        pkg="${ubuntu_packages[$dep]:-$dep}"
+        if dpkg -l | grep -q "^ii  $pkg "; then
+          echo "      ✅ $dep - installed as Ubuntu package '$pkg'"
+        else
+          # If we get here, it's missing
+          echo "      ❌ $dep - missing"
+          if [[ -n "${ubuntu_packages[$dep]:-}" ]]; then
+            to_install+=("${ubuntu_packages[$dep]:-$dep}")
+          else
+            unknown_to_install+="$dep"
+          fi
+        fi
+      fi
+    fi
+  done
+
+  echo "    [04/07] Dependency check summary:"
+  echo "      📋 Found bash builtins: ${#found_builtins[@]}"
+  echo "      📋 Found in path: ${#found_path[@]}"
+  echo "      📋 Missing known packages: ${#to_install[@]}"
+  echo "      📋 Missing unknown packages: ${#unknown_to_install[@]}"
+
+  if [ ${#to_install[@]} -gt 0 ] || [ ${#unknown_to_install[@]} -gt 0 ]  ; then
+    echo "    [05/07] Installing missing packages..."
+
+    if ! sudo -n true 2>/dev/null; then
+      echo "    ❌ Error: Cannot install packages - sudo access required"
+      echo "    Please run 'sudo apt update && sudo apt install ${to_install[*]}' manually"
+      exit 1
+    fi
+
+    if ! sudo apt update -y &>/dev/null; then
+      echo "    ❌ Error: Failed to update package lists"
+      exit 1
+    fi
+
+    if [ ${#to_install[@]} -gt 0 ] ; then
+      echo "      📦 Known packages to install: ${to_install[*]}"
+      if ! sudo apt install -y "${to_install[@]}"; then
+        echo "  ❌ Error: Failed to install packages"
+        echo "  Attempt to install manually: sudo apt install -y ${to_install[*]}"
+        exit 1
+      else
+        echo "  ✅ Successfully installed: ${to_install[*]}"
+      fi
+    fi
+
+    if [ ${#unknown_to_install[@]} -gt 0 ] ; then
+      echo "      📦 Unknown packages to install: ${unknown_to_install[*]}"
+      if ! sudo apt install -y "${unknown_to_install[@]}" &>/dev/null; then
+        echo "      ❌ Error: Failed to install packages"
+        echo "      Please attempt to install manually: sudo apt install -y ${unknown_to_install[*]}"
+        exit 1
+      else
+          echo "  ✅ Successfully installed: ${unknown_to_install[*]}"
+      fi
+    fi
+  else
+    echo "    [05/07] All packages already installed."
+  fi
+
+  echo "    [06/07] Final verification..."
+  final_missing=()
+  for dep in "${deps_array[@]}"; do
+    dep=$(echo "$dep" | xargs)
+    if [ -z "$dep" ]; then
+      continue
+    fi
+
+    if ! command -v "$dep" >/dev/null 2>&1 && ! [[ " ${bash_builtins[*]} " =~ " ${dep} " ]]; then
+      final_missing+=("$dep")
+    fi
+  done
+
+  if [ ${#final_missing[@]} -eq 0 ]; then
+    echo "      🎉 All dependencies validated successfully!"
+    exit_code=0
+  else
+    echo "      ❌ Still missing: ${final_missing[*]}"
+    echo "      Please install these dependencies manually and try again."
+    exit_code=1
+  fi
+
+  echo "    [07/07] Creating dependency report..."
+
+  {
+    echo "Dependency Validation Report - $dt"
+    echo "=================================="
+    echo "Checked: ${deps_array[*]}"
+    echo "Found bash builtins: ${found_builtins[*]}"
+    echo "Installed known Ubuntu packages: ${to_install[*]}"
+    echo "Still missing: ${final_missing[*]}"
+    echo "Exit code: $exit_code"
+  } > "$JUST_HOME/logs/fix_deps/${dt}_fixdeps.log"
+
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
+  if [ $exit_code -eq 0 ]; then
+    echo "$dt [$HOST_NAME] [$progname] End run. All dependencies validated successfully."
+  else
+    echo "$dt [$HOST_NAME] [$progname] End run. Some dependencies are still missing."
+  fi
+  exit $exit_code
 # empties all folders except '/data' and '/backup' folders
 clean:
   #!/usr/bin/env bash
@@ -152,7 +394,10 @@ clean:
 empty:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start emptying all folders (including 'data' and 'backup')."
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" &&
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start emptying all folders (including 'data' and 'backup')."
   mkdir -p "$JUST_HOME"/{backup,data,input,logs,notes,output,report,src,tmp} && echo "    [01/10] Created work folders."
   find "$JUST_HOME"/backup -mindepth 1 -delete &>/dev/null && echo "    [02/10] Deleted all files in $JUST_HOME/backup/."
   find "$JUST_HOME"/data -mindepth 1 -delete &>/dev/null && echo "    [03/10] Deleted all files in $JUST_HOME/data/."
@@ -170,6 +415,7 @@ do_fresh:
   just doit
 # runs everything, without upgrading Ubuntu or other tools
 doit:
+  just _fix_deps
   just sha256
   just unpack
   just cloc
@@ -233,7 +479,11 @@ gemini: _gemini-pnpm
 upgrade: _homebrew
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start update required tools."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start update required tools."
   mkdir -p "$JUST_HOME"/logs/dpkg
   if sudo -n true 2>/dev/null; then
     echo "user can run passwordless sudo"
@@ -274,9 +524,9 @@ upgrade: _homebrew
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
   # pnpm update
   gemini extensions update --all
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
+  printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
-  dpkg -l > "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
+  dpkg -l > "$JUST_HOME"/logs/dpkg/"$safe_dt"_dpkg.log
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # Verifies installation of  Microsoft AppInspector
 _appinspector-install:
@@ -305,35 +555,40 @@ _appinspector-install:
 appinspector: _appinspector-install
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v dafe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     echo "    [02/06] Running AppInspector (HTML)..."
-    if appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_html.log >/dev/null; then
+    if appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log >/dev/null; then
       echo "    [02/06] AppInspector HTML output completed successfully."
     else
-      echo "  !!! WARNING: AppInspector HTML output completed with errors. Check $JUST_HOME/logs/appinspector/"$dt"_appinspector_html.log"
+      echo "  !!! WARNING: AppInspector HTML output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_html.log"
     fi
     echo "    [03/06] Running AppInspector (SARIF)..."
-    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_sarif.log >/dev/null; then
+    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log >/dev/null; then
       echo "    [03/06] AppInspector SARIF output completed successfully."
     else
-      echo "  !!! WARNING: AppInspector SARIF output completed with errors. Check $JUST_HOME/logs/appinspector/"$dt"_appinspector_sarif.log"
+      echo "  !!! WARNING: AppInspector SARIF output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_sarif.log"
     fi
-    if [ ! -f "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif ]; then
+    if [ ! -f "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif ]; then
       echo "  !!! ERROR: AppInspector did not create SARIF output file."
       printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no SARIF output."
       exit 1
     fi
     echo "    [04/06] Running AppInspector (TXT)..."
-    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$dt"_appinspector_text.log >/dev/null; then
+    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_text.log >/dev/null; then
       echo "    [04/06] AppInspector TXT output completed successfully."
     else
-      echo "  !!! WARNING: AppInspector TXT output completed with errors. Check $JUST_HOME/logs/appinspector/"$dt"_appinspector_text.log"
+      echo "  !!! WARNING: AppInspector TXT output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_text.log"
     fi
     rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif 2>/dev/null || true
     echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
-    cp "$JUST_HOME"/output/appinspector/"$dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
+    cp "$JUST_HOME"/output/appinspector/"$saf_dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
   else
     echo "  !!! ERROR: The source code folder is empty. Please unpack the sources with 'just unpack'."
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
@@ -495,7 +750,7 @@ _homebrew:
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     export NONINTERACTIVE=1 && /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
     echo >> /home/"$USER"/.bashrc
-    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/baldwin/.bashrc
+    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/"$USER"/.bashrc
     eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     source /home/"$USER"/.bashrc
     brew analytics off
