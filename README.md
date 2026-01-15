@@ -272,7 +272,6 @@ graph TD
 | `opengrep` | Runs Opengrep over sources in `/src` |
 | `osv-scanner` | Runs Google OSV scanner for SCA over sources in `/src` |
 | `sha256` | Calculates SHA256 hash of source archives in `/input` |
-| `_trufflehog` | Searches for secrets with TruffleHog (legacy) |
 | `unpack` | Unzips source archive(s) from `/input` into `/src` |
 
 ## Create your Personalized baldwin.sh
@@ -304,7 +303,7 @@ Malpertus is one of the myriad of spellings of the name of the lair of [**Reynar
 ## Future (depends on how much coffee I can afford)
 
 - v1.0 More consistent handling of errors/output and better documentation
-- v1.5 A lot more AI (although cor functionaltiy can still be used without AI)
+- v1.5 A lot more AI (although core functionality can still be used without AI)
 - v2.0 Automated vulnerability report of all output
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/igbuend)

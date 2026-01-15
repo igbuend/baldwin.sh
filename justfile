@@ -1059,26 +1059,7 @@ strix:
   fi
   cd "$JUST_HOME"
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# search for secrets with TruffleHog
-_trufflehog:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/trufflehog && echo "    [01/03] Created work folders."
-  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    if docker info > /dev/null 2>&1; then
-      docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --no-color filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.txt
-      echo "    [02/03] Succesfully ran TruffleHog and created report in TXT format."
-      docker run --rm -it -v "$JUST_HOME/src:/pwd" docker.io/trufflesecurity/trufflehog:latest --json filesystem /pwd > "$JUST_HOME"/output/trufflehog/"$dt"_trufflehog-secrets.json
-      echo "    [03/03] Succesfully ran TruffleHog and created report in JSON format."
-    else
-      echo "  !!! TruffleHog uses docker, and it isn't running - please start docker and try again!"
-    fi
-  else
-    echo "  !!! The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
-  fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# unzips source archive(s) into '/src'
+# unpacks source archive(s) into '/src'
 unpack:
   #!/usr/bin/env bash
   set -euo pipefail
