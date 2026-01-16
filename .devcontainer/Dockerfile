@@ -40,6 +40,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
       nano \
       net-tools \
       passt \
+      pbzip2 \
       pipx \
       pigz \
       pkg-config \

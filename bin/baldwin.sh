@@ -107,7 +107,7 @@ backup: (_fix_deps "basename,cp,echo,mkdir,mktemp,pigz,printf,rm,tar")
     tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && \
     echo "    [01/03] Created work folders."
   tar -C "$JUST_HOME" --use-compress-program="pigz --best" \
-    -cf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
+    -cjf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
     --exclude=data \
     --exclude=backup \
     --exclude=tmp . 1>/dev/null \
@@ -124,22 +124,10 @@ output:
   set -euo pipefail
   JUST_HOME="$PWD" && JUST_BASE="${JUST_HOME##*/}" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'output' directory."
   mkdir -p "$JUST_HOME"/{tmp,backup,output} && tempfolder=$(mktemp -d "$PWD/tmp/XXXXXX") && echo "    [01/04] Created work folders."
-  cd "$JUST_HOME" && tar --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 output && echo "    [02/04] Created archive in temporary folder."
+  cd "$JUST_HOME" && tar --use-compress-program="pigz --best" -cjf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 output && echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
   rm -rf "$tempfolder" &>/dev/null || true && echo "    [04/04] Removed temporary folder."
   confirm="Backup of 'output' directory is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
-# creates a backup of only the input folder in $PWD/backup
-_input:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && JUST_BASE="${JUST_HOME##*/}" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'input' folder."
-  mkdir -p "$JUST_HOME"/{backup,input,tmp} && echo "    [01/04] Created work folders."
-  tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX")
-  cd "$JUST_HOME" && tar --use-compress-program="pigz --best" -cf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_input.tar.bz2 input && echo "    [02/04] Created archive in temporary folder."
-  cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_input.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_input.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
-  rm -rf "$tempfolder" || true && echo "    [04/04] Removed temporary folder."
-  confirm="Backup of 'input' directory is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_input.tar.bz2."
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
 # validates and installs necessary tools for Ubuntu LTS
 _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
@@ -1186,8 +1174,14 @@ unpack:
 baldwin:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME/bin" && mkdir -p "$JUST_HOME"/output/baldwin.sh && echo "    [01/05] Created work folders."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start run."
+  mkdir -p "$JUST_HOME/bin" && \
+    mkdir -p "$JUST_HOME"/output/baldwin.sh && \
+    echo "    [01/05] Created work folders."
   # shellcheck disable=SC1009,SC1073
   cat << 'EOF' > "$JUST_HOME"/bin/baldwin.sh
   #!/usr/bin/env bash
