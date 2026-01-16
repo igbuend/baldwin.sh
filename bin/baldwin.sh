@@ -66,7 +66,7 @@ if [ -d "$output_folder" ]; then
   die "Output folder already already exists. Please choose another location."
 fi
 
-mkdir -p "$output_folder"/input &>/dev/null || true
+mkdir -p "$output_folder"/{backup,bin,data,input,logs,output,src,tmp} &>/dev/null || true
 
 # check if output_ folder exists and is writeable
 if [ ! -d "$output_folder" ]; then
@@ -93,7 +93,7 @@ set dotenv-load := true
 default:
   @just --list
 # creates a backup of everything (except /data and /tmp) in '/backup'
-backup: (_fix_deps "basename,cp,echo,mkdir,mktemp,pigz,printf,rm,tar")
+backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -105,30 +105,60 @@ backup: (_fix_deps "basename,cp,echo,mkdir,mktemp,pigz,printf,rm,tar")
     echo "$dt [$HOST_NAME] [$progname] Start full backup (except /data and /tmp folders)."
   mkdir -p "$JUST_HOME"/{backup,tmp} && \
     tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && \
-    echo "    [01/03] Created work folders."
-  tar -C "$JUST_HOME" --use-compress-program="pigz --best" \
-    -cjf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
+    echo "    [01/04] Created work folders."
+  tar -C "$JUST_HOME" --use-compress-program="pbzip2" \
+    --create \
+    -f "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
     --exclude=data \
     --exclude=backup \
     --exclude=tmp . 1>/dev/null \
-    && echo "    [02/03] Created backup archive."
+    && echo "    [02/04] Created backup archive."
   cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ \
     && rm "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
-    && echo "    [03/03] Moved archive to /archive folder."
+    && echo "    [03/04] Moved archive to /archive folder."
   rm -rf "$tempfolder" || true
-  confirm="Backup is /backup/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2."
+  if bzip2 --test "$JUST_HOME"/backup/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 &>/dev/null; then
+    echo "    [04/04] Archive tested as valid .bz2 archive."
+    confirm="Backup is /backup/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2."
+    exit_code=0
+  else
+    echo "    [04/04] Archive failed test!!! Not a valid .bz2 archive!!!"
+    confirm="Failed backup, please review problem and try again!"
+    exit_code=1
+  fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
-# creates a backup of only the output folder in $PWD/backup
-output:
+  exit "$exit_code"
+# creates a backup of only the '/output' folder in '/backup'
+output: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && JUST_BASE="${JUST_HOME##*/}" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start backing up the 'output' directory."
-  mkdir -p "$JUST_HOME"/{tmp,backup,output} && tempfolder=$(mktemp -d "$PWD/tmp/XXXXXX") && echo "    [01/04] Created work folders."
-  cd "$JUST_HOME" && tar --use-compress-program="pigz --best" -cjf "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 output && echo "    [02/04] Created archive in temporary folder."
-  cp "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 "$JUST_HOME"/backup/ && rm "$tempfolder"/"$dt"_"$JUST_BASE"_scr_output.tar.bz2 && echo "    [03/04] Copied archive to 'backup' folder."
-  rm -rf "$tempfolder" &>/dev/null || true && echo "    [04/04] Removed temporary folder."
-  confirm="Backup of 'output' directory is "$JUST_HOME"/backup/"$dt"_"$JUST_BASE"_scr_output.tar.bz2."
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
+  JUST_HOME="$PWD" && \
+    JUST_BASE="${JUST_HOME##*/}" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start backing up the 'output' directory."
+  mkdir -p "$JUST_HOME"/{tmp,backup,output} && \
+    tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && \
+    echo "    [01/04] Created work folders."
+  tar -C "$JUST_HOME" --use-compress-program="pbzip2" -cf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 output && \
+    echo "    [02/04] Created archive in temporary folder."
+  cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 "$JUST_HOME"/backup/ && \
+    rm "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 && \
+    echo "    [03/04] Moved archive to 'backup' folder."
+  rm -rf "$tempfolder" &>/dev/null || true
+  if bzip2 --test "$JUST_HOME"/backup/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 &>/dev/null; then
+    echo "    [04/04] Archive tested as valid .bz2 archive."
+    confirm="Backup is /backup/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2."
+    exit_code=0
+  else
+    echo "    [04/04] Archive failed test!!! Not a valid .bz2 archive!!!"
+    confirm="Failed backup, please review problem and try again!"
+    exit_code=1
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End backup of /output. $confirm"
+  exit "$exit_code"
 # validates and installs necessary tools for Ubuntu LTS
 _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
   #!/usr/bin/env bash
@@ -150,6 +180,7 @@ _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
     ["bats"]="bats"
     ["bc"]="bc"
     ["build-essential"]="build-essential"
+    ["bzip2"]="bzip2"
     ["cat"]="coreutils"
     ["ca-certificates"]="ca-certificates"
     ["coreutils"]="coreutils"
@@ -194,6 +225,7 @@ _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
     ["nmap"]="nmap"
     ["npm"]="npm"
     ["passt"]="passt"
+    ["pbzip2"]="pbzip2"
     ["pkg-config"]="pkg-config"
     ["pnpm"]="pnpm"
     ["pigz"]="pigz"
@@ -1252,7 +1284,7 @@ baldwin:
     die "Output folder already already exists. Please choose another location."
   fi
 
-  mkdir -p "$output_folder"/input &>/dev/null || true
+  mkdir -p "$output_folder"/{backup,bin,data,input,logs,output,src,tmp} &>/dev/null || true
 
   # check if output_ folder exists and is writeable
   if [ ! -d "$output_folder" ]; then
