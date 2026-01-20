@@ -44,31 +44,28 @@ mkdir -p "$JUST_HOME"/logs/script
 
 # opengrep data
 
-  if cd "$JUST_HOME"/data; then
-    sudo rm -rf ./opengrep-rules || true
-    git clone --depth 1 https://github.com/opengrep/opengrep-rules.git
-    if cd opengrep-rules; then # https://unicolet.blogspot.com/2025/04/opengrep-quickstart.html
-      rm -rf .git
-      rm -rf .github
-      rm -rf .pre-commit-config.yaml
-      rm -rf template.yaml
-      find . -type f -not -iname "*.yaml" -delete
-    fi
+if cd "$JUST_HOME"/data; then
+  sudo rm -rf ./opengrep-rules || true
+  git clone --depth 1 https://github.com/opengrep/opengrep-rules.git
+  if cd opengrep-rules; then # https://unicolet.blogspot.com/2025/04/opengrep-quickstart.html
+    rm -rf .git
+    rm -rf .github
+    rm -rf .pre-commit-config.yaml
+    rm -rf template.yaml
+    find . -type f -not -iname "*.yaml" -delete
   fi
-
-# todo.sh
-if cd "$JUST_HOME"/tmp; then
-  sudo rm -rf ./todo.txt-cli || true
-  git clone --depth 1 https://github.com/todotxt/todo.txt-cli.git
-  if cd todo.txt-cli; then
-    sudo make install
-    cd ..
-  fi
-  sudo rm -rf ./todo.txt-cli || true
 fi
-mkdir -p "$JUST_HOME"/logs/todo
-export TODO_DIR="$JUST_HOME"/logs/todo
-echo 'export TODO_DIR="/workspaces/baldwin/logs/todo"' >> "$HOME"/.bashrc
+if cd "$JUST_HOME"/data; then
+  sudo rm -rf "$JUST_HOME"/data/trailofbits-rules || true
+  git clone --quiet --depth 1 https://github.com/trailofbits/semgrep-rules.git trailofbits-rules &>/dev/null
+  if cd trailofbits-rules; then
+    rm -rf .git
+    rm -rf .github
+    rm -rf .pre-commit-config.yaml
+    rm -rf template.yaml
+    find . -type f -not -iname "*.yaml" -delete
+  fi
+fi
 
 sudo dotnet workload update
 dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI

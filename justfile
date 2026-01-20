@@ -459,6 +459,17 @@ upgrade: _homebrew
         find . -type f -not -iname "*.yaml" -delete
       fi
     fi
+    if cd "$JUST_HOME"/data; then
+      sudo rm -rf "$JUST_HOME"/data/trailofbits-rules || true
+      git clone --quiet --depth 1 https://github.com/trailofbits/semgrep-rules.git trailofbits-rules &>/dev/null
+      if cd trailofbits-rules; then
+        rm -rf .git
+        rm -rf .github
+        rm -rf .pre-commit-config.yaml
+        rm -rf template.yaml
+        find . -type f -not -iname "*.yaml" -delete
+      fi
+    fi
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
   # pnpm update
@@ -852,17 +863,32 @@ _opengrep-wget:
       fi && \
       sudo chmod a+x /usr/local/bin/opengrep || true
   else
-    echo "    [01/02] 'Opengrep' is already installed."
+    echo "    [01/03] 'Opengrep' is already installed."
   fi
   mkdir -p "$JUST_HOME"/data
   if [[ -d "$JUST_HOME/data/opengrep-rules" ]]; then
-    echo "    [02/02] 'opengrep-rules' are already installed."
+    echo "    [02/03] 'opengrep-rules' are already installed."
   else
-    echo "    [02/02] Installing 'opengrep-rules'."
+    echo "    [02/03] Installing 'opengrep-rules'."
     cd "$JUST_HOME"/data
     sudo rm -rf "$JUST_HOME"/data/opengrep-rules || true
     git clone --quiet --depth 1 https://github.com/opengrep/opengrep-rules.git &>/dev/null
     if cd opengrep-rules; then # https://unicolet.blogspot.com/2025/04/opengrep-quickstart.html
+      rm -rf .git
+      rm -rf .github
+      rm -rf .pre-commit-config.yaml
+      rm -rf template.yaml
+      find . -type f -not -iname "*.yaml" -delete
+    fi
+  fi
+  if [[ -d "$JUST_HOME/data/trailofbits-rules" ]]; then
+    echo "    [03/03] 'trailofbits-rules' are already installed."
+  else
+    echo "    [03/03] Installing 'trailofbits-rules'."
+    cd "$JUST_HOME"/data
+    sudo rm -rf "$JUST_HOME"/data/trailofbits-rules || true
+    git clone --quiet --depth 1 https://github.com/trailofbits/semgrep-rules.git trailofbits-rules &>/dev/null
+    if cd trailofbits-rules; then
       rm -rf .git
       rm -rf .github
       rm -rf .pre-commit-config.yaml
@@ -892,7 +918,7 @@ opengrep: _opengrep-wget
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     echo "    [02/05] Running Opengrep TXT scan (all severities)..."
-    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
       --dataflow-traces \
@@ -907,7 +933,7 @@ opengrep: _opengrep-wget
       echo "  !!! WARNING: Opengrep TXT scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_txt.log"
     fi
     echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
-    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
       --dataflow-traces \
