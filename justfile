@@ -499,7 +499,6 @@ _appinspector-install:
   else
     if ! command -v appinspector >/dev/null 2>&1; then
       printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-      echo "hello"
       dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI  &> "$JUST_HOME"/logs/appinspector/"$safe_dt"_dotnet_appinspector_installation.log
     fi
   fi
@@ -542,7 +541,7 @@ appinspector: _appinspector-install
     fi
     rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif 2>/dev/null || true
     echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
-    cp "$JUST_HOME"/output/appinspector/"$saf_dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
+    cp "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
   else
     echo "  !!! ERROR: The source code folder is empty. Please unpack the sources with 'just unpack'."
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
