@@ -18,9 +18,14 @@ sudo chown -R "$(whoami)":"$(whoami)" "$JUST_HOME"
 sudo service docker start
 
 sudo apt update
-pnpm setup
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  curl -fsSL https://get.pnpm.io/install.sh | sh -
+fi
 export PNPM_HOME="$HOME/.local/share/pnpm"
+pnpm setup
 touch "$HOME/.bashrc"
+
 #shellcheck disable=SC1090,SC1091
 source "$HOME/.bashrc"
 case ":$PATH:" in
@@ -80,6 +85,7 @@ fi
 printf -v dt '%(%Y%m%d_%H%M%S)T\n' -1
 export dt
 export PATH=$PATH:/$HOME/.local/bin:/$HOME/.dotnet/tools # for sarif
+mkdir -p "$JUST_HOME"/logs/dpkg
 # shellcheck disable=SC2129 # fix later
 echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Checkmarx KICS version: $(docker run --rm --quiet docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
@@ -92,7 +98,7 @@ dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 # implement terminal input logging
 mkdir -p "$JUST_HOME"/logs/script/
 # shellcheck disable=SC2016
-echo '[[ "$SHLVL" -eq 2 ]] && mkdir -p $JUST_HOME/logs/script/ && safe_dt=$(date --utc --rfc-3339=ns)'>> "$HOME"/.bashrc
+echo '[[ "$SHLVL" -eq 2 ]] && '"mkdir -p $JUST_HOME"/logs/script/'" && safe_dt=$(date --utc --rfc-3339=ns)'>> "$HOME"/.bashrc
 # shellcheck disable=SC2016
 echo '[[ "$SHLVL" -eq 2 ]] && '"script --quiet $JUST_HOME"/logs/script/'"$safe_dt"_script.log' >> "$HOME"/.bashrc
 exit 0

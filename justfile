@@ -373,10 +373,14 @@ _gemini-pnpm:
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."  
   if ! command -v gemini >/dev/null 2>&1; then
     if ! [ -d "$JUST_HOME/logs/gemini/" ] ; then
       mkdir -p "$JUST_HOME"/logs/gemini
+    fi
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    if ! command -v pnpm >/dev/null 2>&1; then
+      curl -fsSL https://get.pnpm.io/install.sh | sh -
     fi
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     pnpm add -g @google/gemini-cli &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini_installation.log
