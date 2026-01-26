@@ -513,7 +513,7 @@ appinspector: _appinspector-install
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    printf -v dafe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
     echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
