@@ -894,7 +894,22 @@ _homebrew:
   fi
   brew_version=$(brew --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
-# checks cloud config (using KICS) over sources in '/src'
+# installs 'kics' using Homebrew. Needs Internet access.
+_kics-brew: _homebrew
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'kics'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+  brew install kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
+  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+  # TODO kics appears to be installed but not in user path (/home/linuxbrew/.linuxbrew/opt/kics/bin/kics)
+  kics_version=$(kics --version 2>/dev/null | head -1 || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'kics' ($kics_version)."
+# checks cloud config (using KICS) over sources in '/src' (using Docker)
 kics:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -980,7 +995,7 @@ _noir-brew: _homebrew
     echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
   else
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    brew install noir  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
+    brew install noir &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
   fi
   noir_version=$(noir --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'OWASP Noir' (Noir $noir_version)."
