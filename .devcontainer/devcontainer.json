@@ -38,7 +38,8 @@
 				"files.eol": "auto",
 				"terminal.integrated.defaultProfile.linux": "bash",
 				"window.restoreWindows": "none",
-				"workbench.startupEditor": "none"
+				"workbench.startupEditor": "none",
+				"telemetry.telemetryLevel": "off"
 			}
 		}
 	},

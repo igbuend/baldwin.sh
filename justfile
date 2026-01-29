@@ -606,7 +606,191 @@ csv:
     echo "  !!! The SARIF folder '/output/sarif' is empty. Please run some scans first."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# performs SCA with OWASP depscan over sources in '/src'
+# installs CodeQL CLI if not present
+_codeql-install:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'CodeQL CLI'."
+  if ! command -v codeql >/dev/null 2>&1; then
+    echo "    [01/03] CodeQL CLI not found. Installing..."
+    mkdir -p "$JUST_HOME"/tmp
+    cd "$JUST_HOME"/tmp
+    curl -fsSL "https://github.com/github/codeql-cli-binaries/releases/latest/download/codeql-linux64.zip" -o codeql.zip && \
+      unzip -q codeql.zip && \
+      rm codeql.zip
+    if [ -d "codeql" ]; then
+      sudo mv codeql /usr/local/codeql
+      sudo ln -sf /usr/local/codeql/codeql /usr/local/bin/codeql
+      echo "    [02/03] CodeQL CLI installed to /usr/local/codeql"
+    fi
+    cd "$JUST_HOME"
+  else
+    echo "    [02/03] CodeQL CLI is already installed."
+  fi
+  # Create persistent database storage directory
+  mkdir -p "$JUST_HOME"/data/codeql/codeql-databases
+  echo "    [03/03] Database storage directory ready at /data/codeql/codeql-databases"
+  codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'CodeQL CLI' ($codeql_version)."
+# runs GitHub CodeQL analysis over sources in '/src' (supports multiple languages). Warning: check license!
+codeql: _codeql-install
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start GitHub CodeQL analysis."
+  mkdir -p "$JUST_HOME"/output/codeql && \
+    mkdir -p "$JUST_HOME"/logs/codeql && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
+    mkdir -p "$JUST_HOME"/data/codeql/codeql-databases && \
+    mkdir -p "$JUST_HOME"/src && \
+    echo "    [01/07] Created work folders."  
+  if ! command -v codeql >/dev/null 2>&1; then
+    echo "  !!! ERROR: CodeQL CLI not found. Run 'just _codeql-install' first."
+    exit 1
+  fi
+  # Detect ALL languages present in /src (including subfolders)
+  echo "    [02/07] Detecting languages..."
+  languages=()
+  
+  if find "$JUST_HOME"/src -name "package.json" -o -name "package-lock.json" -o -name "*.js" -o -name "*.ts" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("javascript")
+    echo "      ✓ JavaScript/TypeScript detected"
+  fi
+  if find "$JUST_HOME"/src -name "go.mod" -o -name "*.go" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("go")
+    echo "      ✓ Go detected"
+  fi
+  if find "$JUST_HOME"/src -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" -o -name "*.java" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("java")
+    echo "      ✓ Java detected"
+  fi
+  if find "$JUST_HOME"/src -name "requirements.txt" -o -name "setup.py" -o -name "pyproject.toml" -o -name "Pipfile" -o -name "*.py" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("python")
+    echo "      ✓ Python detected"
+  fi
+  if find "$JUST_HOME"/src -name "Gemfile" -o -name "*.gemspec" -o -name "*.rb" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("ruby")
+    echo "      ✓ Ruby detected"
+  fi
+  if find "$JUST_HOME"/src -name "*.csproj" -o -name "*.sln" -o -name "*.cs" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("csharp")
+    echo "      ✓ C# detected"
+  fi
+  if find "$JUST_HOME"/src \( -name "*.cpp" -o -name "*.c" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "CMakeLists.txt" \) 2>/dev/null | head -1 | grep -q .; then
+    languages+=("cpp")
+    echo "      ✓ C/C++ detected"
+  fi
+  
+  if [ ${#languages[@]} -eq 0 ]; then
+    echo "  !!! ERROR: No supported languages detected. Supported: javascript, python, java, go, ruby, csharp, cpp"
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no languages detected."
+    exit 1
+  fi
+  
+  echo "    [02/07] Detected ${#languages[@]} language(s): ${languages[*]}"
+
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    # Database cluster location
+    DB_DIR="$JUST_HOME/data/codeql/codeql-databases/${safe_dt}"
+    mkdir -p "$DB_DIR"
+    
+    # Build language flags for db-cluster
+    lang_flags=""
+    for lang in "${languages[@]}"; do
+      lang_flags="$lang_flags --language=$lang"
+    done
+    
+    echo "    [03/07] Creating CodeQL database cluster at $DB_DIR..."
+    if codeql database create "$DB_DIR" --db-cluster $lang_flags --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log; then
+      echo "    [03/07] CodeQL database cluster created."
+    else
+      echo "  !!! WARNING: CodeQL database creation had issues. Check logs."
+    fi
+    
+    # Analyze each language database and generate SARIF
+    echo "    [04/07] Running CodeQL analysis on each language..."
+    total_results=0
+    # Calculate RAM limit (50% of available, min 2GB, max 16GB)
+    available_ram=$(free -m | awk '/^Mem:/{print int($7 * 0.5)}')
+    ram_limit=$((available_ram > 16384 ? 16384 : (available_ram > 4096 ? available_ram : 4096)))
+    for lang in "${languages[@]}"; do
+      lang_db="$DB_DIR/$lang"
+      if [ -d "$lang_db" ]; then
+        echo "      Analyzing $lang..."
+        sarif_file="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
+        if codeql database analyze "$lang_db" \
+          --format=sarif-latest \
+          --output="$sarif_file" \
+          --sarif-add-query-help \
+          --ram "$ram_limit" \
+          --download \
+          -- codeql/${lang}-queries:codeql-suites/${lang}-security-and-quality.qls \
+          2>&1 | tee -a "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_analyze_${lang}.log; then
+          echo "      ✓ $lang analysis completed."
+          # Count results
+          if [ -f "$sarif_file" ]; then
+            lang_results=$(jq -c '.runs[].results | length' "$sarif_file" 2>/dev/null || echo "0")
+            total_results=$((total_results + lang_results))
+            echo "        Found $lang_results findings in $lang"
+          fi
+        else
+          echo "      !!! WARNING: $lang analysis completed with errors."
+        fi
+      else
+        echo "      !!! WARNING: Database for $lang not found at $lang_db"
+      fi
+    done
+    
+    # Copy all SARIF files to /output/sarif
+    echo "    [05/07] Moving SARIF results to '/output/sarif'..."
+    mv --force "$JUST_HOME"/output/sarif/*codeql*.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+    
+    for lang in "${languages[@]}"; do
+      sarif_file="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
+      if [ -f "$sarif_file" ]; then
+        cp "$sarif_file" "$JUST_HOME"/output/sarif/
+        echo "      ✓ Copied ${lang} SARIF to /output/sarif"
+      fi
+    done
+    
+    # Optionally merge SARIF files into one combined report
+    echo "    [06/07] Creating combined SARIF report..."
+    combined_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_combined.sarif"
+    if [ ${#languages[@]} -gt 1 ]; then
+      # Simple merge: take first file and append runs from others
+      first_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_${languages[0]}.sarif"
+      if [ -f "$first_sarif" ]; then
+        cp "$first_sarif" "$combined_sarif"
+        for lang in "${languages[@]:1}"; do
+          lang_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
+          if [ -f "$lang_sarif" ]; then
+            # Merge runs array using jq
+            jq -s '.[0].runs += .[1].runs | .[0]' "$combined_sarif" "$lang_sarif" > "${combined_sarif}.tmp" && mv "${combined_sarif}.tmp" "$combined_sarif"
+          fi
+        done
+        cp "$combined_sarif" "$JUST_HOME"/output/sarif/"${safe_dt}_codeql_combined.sarif"
+        echo "      ✓ Combined SARIF created with all ${#languages[@]} languages"
+      fi
+    else
+      # Single language - just copy as combined
+      cp "$JUST_HOME/output/codeql/${safe_dt}_codeql_${languages[0]}.sarif" "$combined_sarif" 2>/dev/null || true
+      cp "$combined_sarif" "$JUST_HOME"/output/sarif/"${safe_dt}_codeql_combined.sarif" 2>/dev/null || true
+    fi
+    echo "    [07/07] Analysis complete."
+    rm -rf "$DB_DIR" 2>/dev/null || true
+    echo "      ✓ Database removed (SARIF files preserved)"
+  else
+    echo "  !!! ERROR: The source code folder '/src' is empty."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
+  fi
+  codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run (CodeQL $codeql_version) with $total_results total findings across ${#languages[@]} language(s)."
+# performs SCA with OWASP depscan over sources in '/src' (legacy)
 _depscan:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -617,13 +801,13 @@ _depscan:
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources (to verify if same with docker)
     docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
-      ghcr.io/owasp-dep-scan/dep-scan \
-      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
-    cd "$JUST_HOME"
+      ghcST_HOME"
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
       mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/07] Renamed output folder to current (at start) date-time."
-    fi
+    fir.io/owasp-dep-scan/dep-scan \
+      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
+    cd "$JU
     touch "$JUST_HOME"/src/bom.json && mv "$JUST_HOME"/src/bom.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [05/07] Moved bom.json to report folder."
     touch "$JUST_HOME"/src/bom.vdr.json && mv "$JUST_HOME"/src/bom.vdr.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [06/07] Moved bom.vdr.json to report folder."
     rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
