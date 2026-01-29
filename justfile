@@ -728,7 +728,7 @@ codeql: _codeql-install
           --sarif-add-query-help \
           --ram "$ram_limit" \
           --download \
-          -- codeql/${lang}-queries:codeql-suites/${lang}-security-and-quality.qls \
+          -- codeql/${lang}-queries:codeql-suites/${lang}-security-extended.qls \
           2>&1 | tee -a "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_analyze_${lang}.log; then
           echo "      ✓ $lang analysis completed."
           # Count results
