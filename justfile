@@ -1181,8 +1181,8 @@ opengrep: _opengrep-wget
   fi
   og_version=$(opengrep --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
-# runs Google OSV scanner for SCA over sources in '/src'
-osv-scanner:
+# runs Google OSV scanner for SCA over sources in '/src' (using docker)
+_osv-scanner-docker:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
@@ -1241,6 +1241,89 @@ osv-scanner:
       printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
       exit 1
     fi
+  else
+    echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
+  fi
+  if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+    mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with $OSV_RESULTS findings."
+_osv-brew: _homebrew
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google OSV'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
+  else
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    brew install osv-scanner &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_osv_installation.log
+  fi
+  osv_version=$(osv-scanner --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'Google OSV' ($osv_version)."
+# runs Google OSV scanner for SCA over sources in '/src'
+osv-scanner:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
+      # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
+      if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+        mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
+      fi
+      if ! command -v jq >/dev/null 2>&1; then
+        sudo apt install jq
+      fi
+      mkdir -p "$JUST_HOME"/output/{osv,sarif} && \
+        mkdir -p "$JUST_HOME"/logs/osv && \
+        mkdir -p "$JUST_HOME"/src/ && \
+        echo "    [01/04] Created work folders."
+      echo "    [02/04] Running OSV-scanner (Markdown)..."
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      if osv-scanner scan --format markdown -r "$JUST_HOME"/src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md; then
+        echo "    [02/04] OSV-scanner Markdown output completed successfully."
+      else
+        osv_exit=$?
+        if [ $osv_exit -eq 1 ]; then
+          echo "    [02/04] OSV-scanner completed - vulnerabilities found (this is normal)."
+        else
+          echo "  !!! WARNING: OSV-scanner Markdown completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_markdown.log"
+        fi
+      fi
+      echo "    [03/04] Running OSV-scanner (SARIF)..."
+      if osv-scanner scan --format sarif -r "$JUST_HOME"/src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif; then
+        echo "    [03/04] OSV-scanner SARIF output completed successfully."
+      else
+        osv_exit=$?
+        if [ $osv_exit -eq 1 ]; then
+          echo "    [03/04] OSV-scanner SARIF completed - vulnerabilities found"
+        else
+          echo "  !!! WARNING: OSV-scanner SARIF completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_sarif.log"
+        fi
+      fi
+      if [ ! -f "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif ]; then
+        echo "  !!! ERROR: OSV-scanner did not create SARIF output file."
+        if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+          mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+        fi
+        printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with ERROR - no SARIF output."
+        exit 1
+      fi
+      rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif 2>/dev/null || true
+      cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/
+      echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
+      OSV_RESULTS=0
+      if [ -f "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif ]; then
+        OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif 2>/dev/null || echo "0")
+      fi
   else
     echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
