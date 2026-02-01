@@ -360,10 +360,10 @@ doit:
   just cloc
   just appinspector
   just osv-scanner
-  just kics
   just gitleaks
   just opengrep
   just noir
+  just kics
   just csv
 # installs Google gemini-cli and usefull extensions if not yet installed
 _gemini-pnpm:
