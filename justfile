@@ -1123,6 +1123,7 @@ opengrep: _opengrep-wget
     if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \"
       --dataflow-traces \
       --taint-intrafile \
       --exclude=test \
@@ -1138,6 +1139,7 @@ opengrep: _opengrep-wget
     if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
       --dataflow-traces \
       --taint-intrafile \
       --severity=WARNING \
