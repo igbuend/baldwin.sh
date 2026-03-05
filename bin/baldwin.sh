@@ -441,10 +441,10 @@ doit:
   just cloc
   just appinspector
   just osv-scanner
-  just kics
   just gitleaks
   just opengrep
   just noir
+  just kics
   just csv
 # installs Google gemini-cli and usefull extensions if not yet installed
 _gemini-pnpm:
@@ -454,10 +454,14 @@ _gemini-pnpm:
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."  
   if ! command -v gemini >/dev/null 2>&1; then
     if ! [ -d "$JUST_HOME/logs/gemini/" ] ; then
       mkdir -p "$JUST_HOME"/logs/gemini
+    fi
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    if ! command -v pnpm >/dev/null 2>&1; then
+      curl -fsSL https://get.pnpm.io/install.sh | sh -
     fi
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     pnpm add -g @google/gemini-cli &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini_installation.log
@@ -540,6 +544,17 @@ upgrade: _homebrew
         find . -type f -not -iname "*.yaml" -delete
       fi
     fi
+    if cd "$JUST_HOME"/data; then
+      sudo rm -rf "$JUST_HOME"/data/trailofbits-rules || true
+      git clone --quiet --depth 1 https://github.com/trailofbits/semgrep-rules.git trailofbits-rules &>/dev/null
+      if cd trailofbits-rules; then
+        rm -rf .git
+        rm -rf .github
+        rm -rf .pre-commit-config.yaml
+        rm -rf template.yaml
+        find . -type f -not -iname "*.yaml" -delete
+      fi
+    fi
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
   # pnpm update
@@ -548,7 +563,7 @@ upgrade: _homebrew
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$safe_dt"_dpkg.log
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Verifies installation of  Microsoft AppInspector
+# Verifies installation of Microsoft AppInspector
 _appinspector-install:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -565,7 +580,6 @@ _appinspector-install:
   else
     if ! command -v appinspector >/dev/null 2>&1; then
       printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-      echo "hello"
       dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI  &> "$JUST_HOME"/logs/appinspector/"$safe_dt"_dotnet_appinspector_installation.log
     fi
   fi
@@ -579,7 +593,7 @@ appinspector: _appinspector-install
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    printf -v dafe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
     echo "$dt [$HOST_NAME] [$progname] Start run."
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
@@ -608,7 +622,7 @@ appinspector: _appinspector-install
     fi
     rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif 2>/dev/null || true
     echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
-    cp "$JUST_HOME"/output/appinspector/"$saf_dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
+    cp "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
   else
     echo "  !!! ERROR: The source code folder is empty. Please unpack the sources with 'just unpack'."
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
@@ -673,7 +687,191 @@ csv:
     echo "  !!! The SARIF folder '/output/sarif' is empty. Please run some scans first."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# performs SCA with OWASP depscan over sources in '/src'
+# installs CodeQL CLI if not present
+_codeql-install:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'CodeQL CLI'."
+  if ! command -v codeql >/dev/null 2>&1; then
+    echo "    [01/03] CodeQL CLI not found. Installing..."
+    mkdir -p "$JUST_HOME"/tmp
+    cd "$JUST_HOME"/tmp
+    curl -fsSL "https://github.com/github/codeql-cli-binaries/releases/latest/download/codeql-linux64.zip" -o codeql.zip && \
+      unzip -q codeql.zip && \
+      rm codeql.zip
+    if [ -d "codeql" ]; then
+      sudo mv codeql /usr/local/codeql
+      sudo ln -sf /usr/local/codeql/codeql /usr/local/bin/codeql
+      echo "    [02/03] CodeQL CLI installed to /usr/local/codeql"
+    fi
+    cd "$JUST_HOME"
+  else
+    echo "    [02/03] CodeQL CLI is already installed."
+  fi
+  # Create persistent database storage directory
+  mkdir -p "$JUST_HOME"/data/codeql/codeql-databases
+  echo "    [03/03] Database storage directory ready at /data/codeql/codeql-databases"
+  codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'CodeQL CLI' ($codeql_version)."
+# runs GitHub CodeQL analysis over sources in '/src' (supports multiple languages). Warning: check license!
+codeql: _codeql-install
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start GitHub CodeQL analysis."
+  mkdir -p "$JUST_HOME"/output/codeql && \
+    mkdir -p "$JUST_HOME"/logs/codeql && \
+    mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
+    mkdir -p "$JUST_HOME"/data/codeql/codeql-databases && \
+    mkdir -p "$JUST_HOME"/src && \
+    echo "    [01/07] Created work folders."  
+  if ! command -v codeql >/dev/null 2>&1; then
+    echo "  !!! ERROR: CodeQL CLI not found. Run 'just _codeql-install' first."
+    exit 1
+  fi
+  # Detect ALL languages present in /src (including subfolders)
+  echo "    [02/07] Detecting languages..."
+  languages=()
+  
+  if find "$JUST_HOME"/src -name "package.json" -o -name "package-lock.json" -o -name "*.js" -o -name "*.ts" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("javascript")
+    echo "      ✓ JavaScript/TypeScript detected"
+  fi
+  if find "$JUST_HOME"/src -name "go.mod" -o -name "*.go" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("go")
+    echo "      ✓ Go detected"
+  fi
+  if find "$JUST_HOME"/src -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" -o -name "*.java" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("java")
+    echo "      ✓ Java detected"
+  fi
+  if find "$JUST_HOME"/src -name "requirements.txt" -o -name "setup.py" -o -name "pyproject.toml" -o -name "Pipfile" -o -name "*.py" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("python")
+    echo "      ✓ Python detected"
+  fi
+  if find "$JUST_HOME"/src -name "Gemfile" -o -name "*.gemspec" -o -name "*.rb" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("ruby")
+    echo "      ✓ Ruby detected"
+  fi
+  if find "$JUST_HOME"/src -name "*.csproj" -o -name "*.sln" -o -name "*.cs" 2>/dev/null | head -1 | grep -q .; then
+    languages+=("csharp")
+    echo "      ✓ C# detected"
+  fi
+  if find "$JUST_HOME"/src \( -name "*.cpp" -o -name "*.c" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "CMakeLists.txt" \) 2>/dev/null | head -1 | grep -q .; then
+    languages+=("cpp")
+    echo "      ✓ C/C++ detected"
+  fi
+  
+  if [ ${#languages[@]} -eq 0 ]; then
+    echo "  !!! ERROR: No supported languages detected. Supported: javascript, python, java, go, ruby, csharp, cpp"
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no languages detected."
+    exit 1
+  fi
+  
+  echo "    [02/07] Detected ${#languages[@]} language(s): ${languages[*]}"
+
+  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+    # Database cluster location
+    DB_DIR="$JUST_HOME/data/codeql/codeql-databases/${safe_dt}"
+    mkdir -p "$DB_DIR"
+    
+    # Build language flags for db-cluster
+    lang_flags=""
+    for lang in "${languages[@]}"; do
+      lang_flags="$lang_flags --language=$lang"
+    done
+    
+    echo "    [03/07] Creating CodeQL database cluster at $DB_DIR..."
+    if codeql database create "$DB_DIR" --db-cluster $lang_flags --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log; then
+      echo "    [03/07] CodeQL database cluster created."
+    else
+      echo "  !!! WARNING: CodeQL database creation had issues. Check logs."
+    fi
+    
+    # Analyze each language database and generate SARIF
+    echo "    [04/07] Running CodeQL analysis on each language..."
+    total_results=0
+    # Calculate RAM limit (50% of available, min 2GB, max 16GB)
+    available_ram=$(free -m | awk '/^Mem:/{print int($7 * 0.5)}')
+    ram_limit=$((available_ram > 16384 ? 16384 : (available_ram > 4096 ? available_ram : 4096)))
+    for lang in "${languages[@]}"; do
+      lang_db="$DB_DIR/$lang"
+      if [ -d "$lang_db" ]; then
+        echo "      Analyzing $lang..."
+        sarif_file="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
+        if codeql database analyze "$lang_db" \
+          --format=sarif-latest \
+          --output="$sarif_file" \
+          --sarif-add-query-help \
+          --ram "$ram_limit" \
+          --download \
+          -- codeql/${lang}-queries:codeql-suites/${lang}-security-extended.qls \
+          2>&1 | tee -a "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_analyze_${lang}.log; then
+          echo "      ✓ $lang analysis completed."
+          # Count results
+          if [ -f "$sarif_file" ]; then
+            lang_results=$(jq -c '.runs[].results | length' "$sarif_file" 2>/dev/null || echo "0")
+            total_results=$((total_results + lang_results))
+            echo "        Found $lang_results findings in $lang"
+          fi
+        else
+          echo "      !!! WARNING: $lang analysis completed with errors."
+        fi
+      else
+        echo "      !!! WARNING: Database for $lang not found at $lang_db"
+      fi
+    done
+    
+    # Copy all SARIF files to /output/sarif
+    echo "    [05/07] Moving SARIF results to '/output/sarif'..."
+    mv --force "$JUST_HOME"/output/sarif/*codeql*.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+    
+    for lang in "${languages[@]}"; do
+      sarif_file="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
+      if [ -f "$sarif_file" ]; then
+        cp "$sarif_file" "$JUST_HOME"/output/sarif/
+        echo "      ✓ Copied ${lang} SARIF to /output/sarif"
+      fi
+    done
+    
+    # Optionally merge SARIF files into one combined report
+    echo "    [06/07] Creating combined SARIF report..."
+    combined_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_combined.sarif"
+    if [ ${#languages[@]} -gt 1 ]; then
+      # Simple merge: take first file and append runs from others
+      first_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_${languages[0]}.sarif"
+      if [ -f "$first_sarif" ]; then
+        cp "$first_sarif" "$combined_sarif"
+        for lang in "${languages[@]:1}"; do
+          lang_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
+          if [ -f "$lang_sarif" ]; then
+            # Merge runs array using jq
+            jq -s '.[0].runs += .[1].runs | .[0]' "$combined_sarif" "$lang_sarif" > "${combined_sarif}.tmp" && mv "${combined_sarif}.tmp" "$combined_sarif"
+          fi
+        done
+        cp "$combined_sarif" "$JUST_HOME"/output/sarif/"${safe_dt}_codeql_combined.sarif"
+        echo "      ✓ Combined SARIF created with all ${#languages[@]} languages"
+      fi
+    else
+      # Single language - just copy as combined
+      cp "$JUST_HOME/output/codeql/${safe_dt}_codeql_${languages[0]}.sarif" "$combined_sarif" 2>/dev/null || true
+      cp "$combined_sarif" "$JUST_HOME"/output/sarif/"${safe_dt}_codeql_combined.sarif" 2>/dev/null || true
+    fi
+    echo "    [07/07] Analysis complete."
+    rm -rf "$DB_DIR" 2>/dev/null || true
+    echo "      ✓ Database removed (SARIF files preserved)"
+  else
+    echo "  !!! ERROR: The source code folder '/src' is empty."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
+  fi
+  codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run (CodeQL $codeql_version) with $total_results total findings across ${#languages[@]} language(s)."
+# performs SCA with OWASP depscan over sources in '/src' (legacy)
 _depscan:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -684,13 +882,13 @@ _depscan:
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources (to verify if same with docker)
     docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
-      ghcr.io/owasp-dep-scan/dep-scan \
-      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
-    cd "$JUST_HOME"
+      ghcST_HOME"
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
       mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/07] Renamed output folder to current (at start) date-time."
-    fi
+    fir.io/owasp-dep-scan/dep-scan \
+      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
+    cd "$JU
     touch "$JUST_HOME"/src/bom.json && mv "$JUST_HOME"/src/bom.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [05/07] Moved bom.json to report folder."
     touch "$JUST_HOME"/src/bom.vdr.json && mv "$JUST_HOME"/src/bom.vdr.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [06/07] Moved bom.vdr.json to report folder."
     rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
@@ -777,7 +975,22 @@ _homebrew:
   fi
   brew_version=$(brew --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
-# checks cloud config (using KICS) over sources in '/src'
+# installs 'kics' using Homebrew. Needs Internet access.
+_kics-brew: _homebrew
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'kics'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+  brew install kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
+  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+  # TODO kics appears to be installed but not in user path (/home/linuxbrew/.linuxbrew/opt/kics/bin/kics)
+  kics_version=$(kics --version 2>/dev/null | head -1 || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'kics' ($kics_version)."
+# checks cloud config (using KICS) over sources in '/src' (using Docker)
 kics:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -863,7 +1076,7 @@ _noir-brew: _homebrew
     echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
   else
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    brew install noir  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
+    brew install noir &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
   fi
   noir_version=$(noir --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'OWASP Noir' (Noir $noir_version)."
@@ -933,17 +1146,32 @@ _opengrep-wget:
       fi && \
       sudo chmod a+x /usr/local/bin/opengrep || true
   else
-    echo "    [01/02] 'Opengrep' is already installed."
+    echo "    [01/03] 'Opengrep' is already installed."
   fi
   mkdir -p "$JUST_HOME"/data
   if [[ -d "$JUST_HOME/data/opengrep-rules" ]]; then
-    echo "    [02/02] 'opengrep-rules' are already installed."
+    echo "    [02/03] 'opengrep-rules' are already installed."
   else
-    echo "    [02/02] Installing 'opengrep-rules'."
+    echo "    [02/03] Installing 'opengrep-rules'."
     cd "$JUST_HOME"/data
     sudo rm -rf "$JUST_HOME"/data/opengrep-rules || true
     git clone --quiet --depth 1 https://github.com/opengrep/opengrep-rules.git &>/dev/null
     if cd opengrep-rules; then # https://unicolet.blogspot.com/2025/04/opengrep-quickstart.html
+      rm -rf .git
+      rm -rf .github
+      rm -rf .pre-commit-config.yaml
+      rm -rf template.yaml
+      find . -type f -not -iname "*.yaml" -delete
+    fi
+  fi
+  if [[ -d "$JUST_HOME/data/trailofbits-rules" ]]; then
+    echo "    [03/03] 'trailofbits-rules' are already installed."
+  else
+    echo "    [03/03] Installing 'trailofbits-rules'."
+    cd "$JUST_HOME"/data
+    sudo rm -rf "$JUST_HOME"/data/trailofbits-rules || true
+    git clone --quiet --depth 1 https://github.com/trailofbits/semgrep-rules.git trailofbits-rules &>/dev/null
+    if cd trailofbits-rules; then
       rm -rf .git
       rm -rf .github
       rm -rf .pre-commit-config.yaml
@@ -973,9 +1201,10 @@ opengrep: _opengrep-wget
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     echo "    [02/05] Running Opengrep TXT scan (all severities)..."
-    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
       --dataflow-traces \
       --taint-intrafile \
       --exclude=test \
@@ -988,9 +1217,10 @@ opengrep: _opengrep-wget
       echo "  !!! WARNING: Opengrep TXT scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_txt.log"
     fi
     echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
-    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules \
+    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
       --dataflow-traces \
       --taint-intrafile \
       --severity=WARNING \
@@ -1034,8 +1264,8 @@ opengrep: _opengrep-wget
   fi
   og_version=$(opengrep --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
-# runs Google OSV scanner for SCA over sources in '/src'
-osv-scanner:
+# runs Google OSV scanner for SCA over sources in '/src' (using docker)
+_osv-scanner-docker:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
@@ -1094,6 +1324,89 @@ osv-scanner:
       printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
       exit 1
     fi
+  else
+    echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
+    exit 1
+  fi
+  if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+    mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+  fi
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with $OSV_RESULTS findings."
+_osv-brew: _homebrew
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google OSV'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
+  else
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    brew install osv-scanner &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_osv_installation.log
+  fi
+  osv_version=$(osv-scanner --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'Google OSV' ($osv_version)."
+# runs Google OSV scanner for SCA over sources in '/src'
+osv-scanner:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
+      # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
+      if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
+        mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
+      fi
+      if ! command -v jq >/dev/null 2>&1; then
+        sudo apt install jq
+      fi
+      mkdir -p "$JUST_HOME"/output/{osv,sarif} && \
+        mkdir -p "$JUST_HOME"/logs/osv && \
+        mkdir -p "$JUST_HOME"/src/ && \
+        echo "    [01/04] Created work folders."
+      echo "    [02/04] Running OSV-scanner (Markdown)..."
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      if osv-scanner scan --format markdown -r "$JUST_HOME"/src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md; then
+        echo "    [02/04] OSV-scanner Markdown output completed successfully."
+      else
+        osv_exit=$?
+        if [ $osv_exit -eq 1 ]; then
+          echo "    [02/04] OSV-scanner completed - vulnerabilities found (this is normal)."
+        else
+          echo "  !!! WARNING: OSV-scanner Markdown completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_markdown.log"
+        fi
+      fi
+      echo "    [03/04] Running OSV-scanner (SARIF)..."
+      if osv-scanner scan --format sarif -r "$JUST_HOME"/src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif; then
+        echo "    [03/04] OSV-scanner SARIF output completed successfully."
+      else
+        osv_exit=$?
+        if [ $osv_exit -eq 1 ]; then
+          echo "    [03/04] OSV-scanner SARIF completed - vulnerabilities found"
+        else
+          echo "  !!! WARNING: OSV-scanner SARIF completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_sarif.log"
+        fi
+      fi
+      if [ ! -f "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif ]; then
+        echo "  !!! ERROR: OSV-scanner did not create SARIF output file."
+        if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
+          mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
+        fi
+        printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with ERROR - no SARIF output."
+        exit 1
+      fi
+      rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif 2>/dev/null || true
+      cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/
+      echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
+      OSV_RESULTS=0
+      if [ -f "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif ]; then
+        OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif 2>/dev/null || echo "0")
+      fi
   else
     echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."

@@ -130,12 +130,14 @@ _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
     ["gnupg2"]="gnupg2"
     ["golang"]="golang-go"
     ["go"]="golang-go"
+    ["gradle"]="gradle"
     ["jq"]="jq"
     ["ln"]="coreutis"
     ["locales"]="locales"
     ["ls"]="coreutils"
     ["lsb-release"]="lsb-release"
     ["make"]="make"
+    ["maven"]="maven"
     ["mktemp"]="coreutils"
     ["mv"]="coreutils"
     ["mkdir"]="coreutils"
@@ -158,6 +160,7 @@ _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
     ["ripgrep"]="ripgrep"
     ["rm"]="coreutils"
     ["rmdir"]="coreutils"
+    ["sha256sum"]="coreutils"
     ["shellcheck"]="shellcheck"
     ["shuff"]="coreutils"
     ["slirp4netns"]="slirp4netns"
@@ -315,7 +318,7 @@ _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
   fi
   exit $exit_code
 # empties all folders except '/data' and '/backup' folders
-clean:
+clean: (_fix_deps "basename,echo,find,mkdir,printf,set")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start emptying all folders (not including 'data' and 'backup')."
@@ -330,7 +333,7 @@ clean:
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
   # mkdir -p "$JUST_HOME"/logs/script && script --quiet "$JUST_HOME"/logs/script/"$dt"_script.log # restart terminal logging, kludge: increases $SHLVL
 # empties all folders including data and backup folders
-empty:
+empty: (_fix_deps "basename,echo,find,printf,set")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" &&
@@ -366,7 +369,7 @@ doit:
   just kics
   just csv
 # installs Google gemini-cli and usefull extensions if not yet installed
-_gemini-pnpm:
+_gemini-pnpm: (_fix_deps "basename,command,echo,find,mkdir,printf,set")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -407,7 +410,7 @@ _gemini-pnpm:
   gemini_version=$(gemini --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'gemini-cli' ($gemini_version)."
 # opens Google gemini-cli
-gemini: _gemini-pnpm
+gemini: _gemini-pnpm (_fix_deps "basename,echo,printf,set")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -419,7 +422,7 @@ gemini: _gemini-pnpm
   gemini_version=$(gemini --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'gemini-cli' ($gemini_version)."
 # upgrades Ubuntu and all seperately installed tools
-upgrade: _homebrew
+upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm,set,sudo,wget")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -482,7 +485,7 @@ upgrade: _homebrew
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$safe_dt"_dpkg.log
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Verifies installation of  Microsoft AppInspector
+# Verifies installation of Microsoft AppInspector
 _appinspector-install:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -633,7 +636,7 @@ _codeql-install:
   codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'CodeQL CLI' ($codeql_version)."
 # runs GitHub CodeQL analysis over sources in '/src' (supports multiple languages). Warning: check license!
-codeql: _codeql-install
+codeql: _codeql-install (_fix_deps "basename,command,echo,gradle,mkdir,printf")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -695,21 +698,24 @@ codeql: _codeql-install
 
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     # Database cluster location
-    DB_DIR="$JUST_HOME/data/codeql/codeql-databases/${safe_dt}"
+    export DB_DIR="$JUST_HOME/data/codeql/codeql-databases/${safe_dt}"
     mkdir -p "$DB_DIR"
     
     # Build language flags for db-cluster
-    lang_flags=""
+    language_flags=""
     for lang in "${languages[@]}"; do
-      lang_flags="$lang_flags --language=$lang"
-    done
-    
-    echo "    [03/07] Creating CodeQL database cluster at $DB_DIR..."
-    if codeql database create "$DB_DIR" --db-cluster $lang_flags --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log; then
-      echo "    [03/07] CodeQL database cluster created."
-    else
-      echo "  !!! WARNING: CodeQL database creation had issues. Check logs."
-    fi
+      if [[ $lang != "go" ]]; then    # cannot use build-mode none for go
+        language_flags+="--language=$lang "
+      else
+        codeql database create "$DB_DIR" --language=go --build-mode=auto --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log; then
+      fi
+
+      echo "    [03/07] Creating CodeQL database cluster for language $lang at $DB_DIR..."
+      if codeql database create "$DB_DIR" --db-cluster $language_flags --build-mode=none --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log; then
+        echo "    [03/07] CodeQL database cluster created."
+      else
+        echo "  !!! WARNING: CodeQL database creation had issues. Check logs."
+      fi
     
     # Analyze each language database and generate SARIF
     echo "    [04/07] Running CodeQL analysis on each language..."
@@ -725,7 +731,7 @@ codeql: _codeql-install
         if codeql database analyze "$lang_db" \
           --format=sarif-latest \
           --output="$sarif_file" \
-          --sarif-add-query-help \
+          --sarif-include-query-help=always \
           --ram "$ram_limit" \
           --download \
           -- codeql/${lang}-queries:codeql-suites/${lang}-security-extended.qls \
@@ -799,7 +805,7 @@ _depscan:
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
-    cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources (to verify if same with docker)
+    cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
     docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
       ghcST_HOME"
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
@@ -874,7 +880,7 @@ gitleaks: _gitleaks-brew
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'gitleaks' run with $GITLEAKS_RESULTS findings."
 # installs Homebrew if not already installed.
-_homebrew:
+_homebrew: (_fix_deps "basename,echo,eval,find,mkdir,printf,set,sudo")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
@@ -1045,16 +1051,10 @@ noir: _noir-brew
   noir_version=$(noir --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
 # verifies installation of 'Opengrep'
-_opengrep-wget:
+_opengrep-wget: (_fix_deps "command,echo,git,printf,sudo,wget")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'opengrep'."
-  if ! command -v wget >/dev/null 2>&1; then
-    sudo apt install wget
-  fi
-  if ! command -v git >/dev/null 2>&1; then
-    sudo apt install git
-  fi
   if ! command -v opengrep >/dev/null 2>&1; then
     echo "    [01/02] Installing 'Opengrep'."
     arch=$(uname -m)
@@ -1123,7 +1123,7 @@ opengrep: _opengrep-wget
     if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
-      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \"
+      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
       --dataflow-traces \
       --taint-intrafile \
       --exclude=test \
@@ -1183,96 +1183,8 @@ opengrep: _opengrep-wget
   fi
   og_version=$(opengrep --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
-# runs Google OSV scanner for SCA over sources in '/src' (using docker)
-_osv-scanner-docker:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
-  if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
-    if docker info > /dev/null 2>&1; then
-      # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
-      if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
-        mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
-      fi
-      if ! command -v jq >/dev/null 2>&1; then
-        sudo apt install jq
-      fi
-      mkdir -p "$JUST_HOME"/output/{osv,sarif} && \
-        mkdir -p "$JUST_HOME"/logs/osv && \
-        mkdir -p "$JUST_HOME"/src/ && \
-        echo "    [01/04] Created work folders."
-      echo "    [02/04] Running OSV-scanner (Markdown)..."
-      if docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format markdown -r /src src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md; then
-        echo "    [02/04] OSV-scanner Markdown output completed successfully."
-      else
-        osv_exit=$?
-        if [ $osv_exit -eq 1 ]; then
-          echo "    [02/04] OSV-scanner completed - vulnerabilities found (this is normal)."
-        else
-          echo "  !!! WARNING: OSV-scanner Markdown completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_markdown.log"
-        fi
-      fi
-      echo "    [03/04] Running OSV-scanner (SARIF)..."
-      if docker run --rm --quiet -v "$JUST_HOME"/src:/src ghcr.io/google/osv-scanner scan --format sarif -r /src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_sarif.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif; then
-        echo "    [03/04] OSV-scanner SARIF output completed successfully."
-      else
-        osv_exit=$?
-        if [ $osv_exit -eq 1 ]; then
-          echo "    [03/04] OSV-scanner SARIF completed - vulnerabilities found"
-        else
-          echo "  !!! WARNING: OSV-scanner SARIF completed with unexpected exit code $osv_exit. Check $JUST_HOME/logs/osv/"$dt"_osv_sarif.log"
-        fi
-      fi
-      if [ ! -f "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif ]; then
-        echo "  !!! ERROR: OSV-scanner did not create SARIF output file."
-        if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
-          mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
-        fi
-        printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with ERROR - no SARIF output."
-        exit 1
-      fi
-      rm -f "$JUST_HOME"/output/sarif/*google-osv-scanner.sarif 2>/dev/null || true
-      cp "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.sarif "$JUST_HOME"/output/sarif/
-      echo "    [04/04] Copied SARIF results to '/output/sarif' folder."
-      OSV_RESULTS=0
-      if [ -f "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif ]; then
-        OSV_RESULTS=$(jq -c '.runs[].results | length' "$JUST_HOME"/output/sarif/"$dt"_google-osv-scanner.sarif 2>/dev/null || echo "0")
-      fi
-    else
-      echo "  !!! ERROR: Google OSV uses docker, and it isn't running - please start docker and try again!"
-      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
-      exit 1
-    fi
-  else
-    echo "  !!! ERROR: The source code directory is empty. Please unpack the sources with 'just unpack'."
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
-    exit 1
-  fi
-  if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
-    mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
-  fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with $OSV_RESULTS findings."
-_osv-brew: _homebrew
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && \
-    HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && \
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google OSV'."
-  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
-    mkdir -p "$JUST_HOME"/logs/homebrew
-  fi
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-  if ! command -v brew >/dev/null 2>&1; then
-    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
-  else
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    brew install osv-scanner &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_osv_installation.log
-  fi
-  osv_version=$(osv-scanner --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'Google OSV' ($osv_version)."
 # runs Google OSV scanner for SCA over sources in '/src'
-osv-scanner:
+osv-scanner: (_fix_deps "echo,jq,printf")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
@@ -1280,9 +1192,6 @@ osv-scanner:
       # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
       if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
         mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
-      fi
-      if ! command -v jq >/dev/null 2>&1; then
-        sudo apt install jq
       fi
       mkdir -p "$JUST_HOME"/output/{osv,sarif} && \
         mkdir -p "$JUST_HOME"/logs/osv && \
@@ -1336,7 +1245,7 @@ osv-scanner:
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'osv-scanner' run with $OSV_RESULTS findings."
 # calculates SHA256 hash of the input source archives
-sha256:
+sha256: (_fix_deps "basename,echo,ls,mkdir,printf,sha256sum")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."

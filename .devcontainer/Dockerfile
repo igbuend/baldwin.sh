@@ -106,6 +106,6 @@ RUN groupadd --non-unique --gid $USER_GID $USER_NAME \
 # RUN rm -rf /var/lib/apt/lists/*
 
 # Set the default user. Run whatever you need to install as non-root user after this line.
-ENV HOME /home/$USER_NAME
+ENV HOME=/home/$USER_NAME
 USER $USER_NAME
 WORKDIR $HOME

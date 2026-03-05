@@ -97,8 +97,11 @@ dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 
 # implement terminal input logging
 mkdir -p "$JUST_HOME"/logs/script/
+# shellcheck disable=SC2129
+echo "printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1"  >> "$HOME"/.bashrc 
 # shellcheck disable=SC2016
-echo '[[ "$SHLVL" -eq 2 ]] && '"mkdir -p $JUST_HOME"/logs/script/' && safe_dt=$(date --utc --rfc-3339=ns)'>> "$HOME"/.bashrc
+echo '[[ "$SHLVL" -eq 2 ]] && mkdir -p '"$JUST_HOME/logs/script/" >> "$HOME"/.bashrc 
 # shellcheck disable=SC2016
 echo '[[ "$SHLVL" -eq 2 ]] && '"script --quiet $JUST_HOME"/logs/script/'"$safe_dt"_script.log' >> "$HOME"/.bashrc
 exit 0
+
