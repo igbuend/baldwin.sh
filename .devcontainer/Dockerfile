@@ -32,6 +32,7 @@ RUN export DEBIAN_FRONTEND=noninteractive \
       git \
       gnupg2 \
       golang \
+      gradle \
       jq \
       just \
       lsb-release \
