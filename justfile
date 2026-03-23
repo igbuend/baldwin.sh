@@ -648,7 +648,7 @@ _codeql-install:
   codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'CodeQL CLI' ($codeql_version)."
 # runs GitHub CodeQL analysis over sources in '/src' (supports multiple languages). Warning: check license!
-codeql: _codeql-install (_fix_deps "basename,command,echo,gradle,mkdir,printf")
+codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,printf")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -706,9 +706,9 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,gradle,mkdir,printf")
     exit 1
   fi
   
-  echo "    [02/07] Detected ${#languages[@]} language(s): ${languages[*]}"
+  echo "    [03/07] Detected ${#languages[@]} language(s): ${languages[*]}"
 
-  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
+  if [ -d "$JUST_HOME/src/" ] && [ -n "$(find "$JUST_HOME/src" -mindepth 1 -print -quit 2>/dev/null)" ]; then
     # Database cluster location
     export DB_DIR="$JUST_HOME/data/codeql/codeql-databases/${safe_dt}"
     mkdir -p "$DB_DIR"
@@ -719,7 +719,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,gradle,mkdir,printf")
       if [[ $lang != "go" ]]; then    # cannot use build-mode none for go
         language_flags+="--language=$lang "
       else
-        codeql database create "$DB_DIR" --language=go --build-mode=auto --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log; then
+        codeql database create "$DB_DIR" --language=go --build-mode=autobuild --source-root "$JUST_HOME"/src --overwrite 2>&1 | tee "$JUST_HOME"/logs/codeql/"$safe_dt"_codeql_create.log
       fi
 
       echo "    [03/07] Creating CodeQL database cluster for language $lang at $DB_DIR..."
@@ -728,6 +728,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,gradle,mkdir,printf")
       else
         echo "  !!! WARNING: CodeQL database creation had issues. Check logs."
       fi
+    done
     
     # Analyze each language database and generate SARIF
     echo "    [04/07] Running CodeQL analysis on each language..."
