@@ -478,9 +478,21 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
       fi
     fi
   fi
-  dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI
+  dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI || true
   # pnpm update
   gemini extensions update --all
+  mkdir -p "$JUST_HOME"/tmp
+  cd "$JUST_HOME"/tmp
+  rm -rf codeql
+  curl -fsSL "https://github.com/github/codeql-cli-binaries/releases/latest/download/codeql-linux64.zip" -o codeql.zip && \
+      unzip -q codeql.zip && \
+      rm codeql.zip
+  if [ -d "codeql" ]; then
+    sudo rm -rf /usr/local/codeql
+    sudo mv -f codeql /usr/local/
+    sudo ln -sf /usr/local/codeql/codeql /usr/local/bin/codeql
+  fi
+  cd "$JUST_HOME"
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$safe_dt"_dpkg.log
