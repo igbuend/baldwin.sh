@@ -1329,7 +1329,7 @@ unpack:
   echo "    [01/03] Creating work folders..."
   mkdir -p "$JUST_HOME"/{src,input} && \
     mkdir -p "$JUST_HOME"/output/unpack 
-  echo "    [02/03] Searching for sourcode archives in /input..."
+  echo "    [02/03] Searching for sourcecode archives in /input..."
   found=false
   for file in "$JUST_HOME"/input/*.{zip,7z,tar.bz}; do
     if [ -e "$file" ]; then
