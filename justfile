@@ -820,13 +820,13 @@ _depscan:
     TEMP_FOLDER="${TEMP_DIR##*/}"
     cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
     docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
-      ghcST_HOME"
+      ghcr.io/owasp-dep-scan/dep-scan \
+      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
     cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
     if cd "$JUST_HOME"/output/depscan/; then
-      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/07] Renamed output folder to current (at start) date-time."
-    fir.io/owasp-dep-scan/dep-scan \
-      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
-    cd "$JU
+      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/07] Renamed output folder to start-time."
+    fi
+    cd "$JUST_HOME"
     touch "$JUST_HOME"/src/bom.json && mv "$JUST_HOME"/src/bom.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [05/07] Moved bom.json to report folder."
     touch "$JUST_HOME"/src/bom.vdr.json && mv "$JUST_HOME"/src/bom.vdr.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [06/07] Moved bom.vdr.json to report folder."
     rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
@@ -1317,7 +1317,7 @@ strix:
 # unpacks source archive(s) into '/src'
 unpack:
   #!/usr/bin/env bash
-  set -euo pipefail
+  set -euxo pipefail
   JUST_HOME="$PWD" && \
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
