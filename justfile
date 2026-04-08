@@ -376,12 +376,10 @@ _gemini-pnpm: (_fix_deps "basename,command,echo,find,mkdir,printf,set")
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+    mkdir -p "$JUST_HOME"/logs/gemini && \
     echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."  
   if ! command -v gemini >/dev/null 2>&1; then
-    if ! [ -d "$JUST_HOME/logs/gemini/" ] ; then
-      mkdir -p "$JUST_HOME"/logs/gemini
-    fi
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
     if ! command -v pnpm >/dev/null 2>&1; then
       curl -fsSL https://get.pnpm.io/install.sh | sh -
     fi
@@ -480,7 +478,9 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI || true
   # pnpm update
-  gemini extensions update --all
+  if command -v gemini >/dev/null 2>&1; then
+    gemini extensions update --all
+  fi
   mkdir -p "$JUST_HOME"/tmp
   cd "$JUST_HOME"/tmp
   rm -rf codeql
