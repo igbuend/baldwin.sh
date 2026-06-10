@@ -1420,7 +1420,9 @@ unpack:
   done
   if "$found"; then
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
-      unzip -qq -o "$JUST_HOME"/input/*.zip -d "$JUST_HOME"/src/
+      for zipfile in "$JUST_HOME"/input/*.zip; do
+        unzip -qq -o "$zipfile" -d "$JUST_HOME"/src/
+      done
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
     if ls "$JUST_HOME"/input/*.7z 1> /dev/null 2>&1; then
