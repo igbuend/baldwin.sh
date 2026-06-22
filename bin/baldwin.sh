@@ -1004,68 +1004,63 @@ _kics-brew: _homebrew
   fi
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-  brew install kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
   export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
-  # TODO kics appears to be installed but not in user path (/home/linuxbrew/.linuxbrew/opt/kics/bin/kics)
-  kics_version=$(kics --version 2>/dev/null | head -1 || echo "unknown")
+  if ! command -v kics ; then
+    brew install kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
+    export PATH=/home/linuxbrew/.linuxbrew/opt/kics/bin:$PATH
+  fi
+  kics_version=$(kics version 2>/dev/null | head -1 || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'kics' ($kics_version)."
-# checks cloud config (using KICS) over sources in '/src' (using Docker)
-kics:
+# checks cloud config (using KICS) over sources in '/src' (using "brew")
+kics: _kics-brew
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
-    HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && \
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
-    echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
-  USER_UID=$(id -u)
-  USER_GID=$(id -g)
-    mkdir -p "$JUST_HOME"/output/kics && \
+      HOST_NAME="$(hostname)" && \
+      progname="$(basename "$0")" && \
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+      printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
+      echo "$dt [$HOST_NAME] [$progname] Start Checkmarx KICS."
+  mkdir -p "$JUST_HOME"/output/kics && \
     mkdir -p "$JUST_HOME"/logs/kics && \
     mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
-    echo "    [01/04] Created work folders."
+    echo "    [01/07] Created work folders."
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
+  if ! command -v kics >/dev/null 2>&1 ; then
+    export PATH=/home/linuxbrew/.linuxbrew/opt/kics/bin:$PATH
+  fi
+  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
-    if docker info > /dev/null 2>&1; then
-      echo "    [02/07] Running KICS scan..."
-      if docker run --rm -t -u "$USER_UID":"$USER_GID" -v "$JUST_HOME/src/":/path docker.io/checkmarx/kics scan -p /path -o "/path/$TEMP_FOLDER" -e "/path/**/test" -e "/path/**/tests" --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore; then
-        echo "    [02/07] KICS scan completed successfully."
-      else
-        echo "  !!! WARNING: KICS scan completed with errors or findings. Check logs for details."
-      fi
-      if [ ! -f "$TEMP_DIR"/kics-result.sarif ]; then
-        echo "  !!! ERROR: KICS did not create SARIF output file. Check logs at $JUST_HOME/logs/kics/"
-        rm -rf "$TEMP_DIR" 2>&1 || true
-        if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
-          mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
-        fi
-        printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no output created."
-        exit 1
-      fi
-      cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
-      mv --force "$JUST_HOME"/output/sarif/*kics.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
-      echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
-      cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif && \
-        echo "    [05/07] Copied SARIF results to '/output/sarif'."
-      if cd "$JUST_HOME"/output/kics/; then
-        mv -T "$TEMP_FOLDER" "$safe_dt" && echo "    [06/07] Renamed output folder to current date-time."
-      fi
-      rm -rf "$TEMP_DIR" 2>&1 || true
-      echo "    [07/07] Removed temporary folder."
+    echo "    [02/07] Running KICS scan..."
+    if kics scan -p "$JUST_HOME/src/" -o "$JUST_HOME/src/$TEMP_FOLDER" -e "$JUST_HOME"/src/**/test -e "/$JUST_HOME"/src/**/tests --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore; then
+      echo "    [02/07] KICS scan completed successfully."
     else
-      echo "  !!! ERROR: KICS uses docker, and it isn't running - please start docker and try again!"
+      echo "  !!! WARNING: KICS scan completed with errors or findings. Check logs for details."
+    fi
+    if [ ! -f "$TEMP_DIR"/kics-result.sarif ]; then
+      echo "  !!! ERROR: KICS did not create SARIF output file. Check logs at $JUST_HOME/logs/kics/"
+      rm -rf "$TEMP_DIR" 2>&1 || true
       if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
         mv "$JUST_HOME"/"$dt"_gitignore "$JUST_HOME"/.gitignore
       fi
-      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - Docker not available."
+      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no output created."
       exit 1
     fi
+    cp -r "$TEMP_DIR" "$JUST_HOME"/output/kics/ && echo "    [03/07] Copied output to '/output/kics' folder."
+    mv --force "$JUST_HOME"/output/sarif/*kics.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+    echo "    [04/07] Removed earlier KICS SARIF output from '/output/sarif' folder."
+    cp "$JUST_HOME"/output/kics/"$TEMP_FOLDER"/kics-result.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_kics.sarif && \
+      echo "    [05/07] Copied SARIF results to '/output/sarif'."
+    if cd "$JUST_HOME"/output/kics/; then
+      mv -T "$TEMP_FOLDER" "$safe_dt" && echo "    [06/07] Renamed output folder to current date-time."
+    fi
+    rm -rf "$TEMP_DIR" 2>&1 || true
+    echo "    [07/07] Removed temporary folder."
   else
     echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
     if [ -f "$JUST_HOME"/"$dt"_gitignore ] && [ -w "$JUST_HOME"/"$dt"_gitignore ]; then
