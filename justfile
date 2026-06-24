@@ -1011,6 +1011,23 @@ noir: _noir-brew
   fi
   noir_version=$(noir --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
+# verifies installation of Alibaba Open Code Review (ocr)
+_ocr-curl:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && 
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && 
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Alibaba Open Code Review'."
+  if ! command -v ocr >/dev/null 2>&1; then
+    echo "    [01/01] Installing 'Alibaba Open Code Review'."
+    curl -fsSL https://raw.githubusercontent.com/alibaba/open-code-review/main/install.sh | sh
+  else
+    echo "    [01/01] 'Alibaba Open Code Review' is already installed."
+  fi
+  ocr_version=$(ocr --version)
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'AlibabaOpen Code Review' ($ocr_version)."
 # verifies installation of 'Opengrep'
 _opengrep-wget: (_fix_deps "command,echo,git,printf,sudo,wget")
   #!/usr/bin/env bash
