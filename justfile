@@ -386,8 +386,8 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   sudo apt update -y && sudo apt upgrade -y
   # TODO check if homebrew can be found or not
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-  echo >> /home/baldwin/.bashrc
-  echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> /home/baldwin/.bashrc
+  echo >> ~/.bashrc
+  echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> ~/.bashrc
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)" && brew update && brew outdated && brew upgrade && brew cleanup
   # pipx upgrade-all
   arch=$(uname -m)
@@ -1011,8 +1011,8 @@ noir: _noir-brew
   fi
   noir_version=$(noir --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
-# verifies installation of Alibaba Open Code Review (ocr)
-_ocr-curl:
+# verifies installation of 'Alibaba Open Code Review (ocr)''
+_ocr-curl: (_fix_deps "command,curl,echo,hostname,printf")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -1027,7 +1027,7 @@ _ocr-curl:
     echo "    [01/01] 'Alibaba Open Code Review' is already installed."
   fi
   ocr_version=$(ocr --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'AlibabaOpen Code Review' ($ocr_version)."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Alibaba Open Code Review' ($ocr_version)."
 # verifies installation of 'Opengrep'
 _opengrep-wget: (_fix_deps "command,echo,git,printf,sudo,wget")
   #!/usr/bin/env bash
