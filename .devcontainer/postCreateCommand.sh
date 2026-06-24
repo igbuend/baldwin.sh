@@ -39,9 +39,6 @@ pipx install sarif-tools strix-agent -qq && pipx ensurepath
 # jsluice
 go install github.com/BishopFox/jsluice/cmd/jsluice@latest
 
-# gemini-cli
-pnpm add -g @google/gemini-cli
-
 sudo chown -R "$(whoami)":"$(whoami)" "$HOME"/.local
 
 mkdir -p "$JUST_HOME"/{backup,bin,data,input,logs,notes,output,report,src,tmp}

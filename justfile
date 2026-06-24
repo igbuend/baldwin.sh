@@ -368,57 +368,6 @@ doit:
   just noir
   just kics
   just csv
-# installs Google gemini-cli and usefull extensions if not yet installed
-_gemini-pnpm: (_fix_deps "basename,command,echo,find,mkdir,printf,set")
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && \
-    HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && \
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
-    mkdir -p "$JUST_HOME"/logs/gemini && \
-    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google gemini-cli'."  
-  if ! command -v gemini >/dev/null 2>&1; then
-    if ! command -v pnpm >/dev/null 2>&1; then
-      curl -fsSL https://get.pnpm.io/install.sh | sh -
-    fi
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    pnpm add -g @google/gemini-cli &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini_installation.log
-  fi
-  extensions=$(gemini extensions list)
-  if [[ "$extensions" == *"gemini-cli-security"* ]]; then
-    echo "  + Found extension 'gemini-cli-security'"
-  else
-    echo "  + Installing extension 'gemini-cli-security'"
-    gemini extensions install https://github.com/gemini-cli-extensions/security --consent &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini-cli-security_installation.log
-  fi
-  if [[ "$extensions" == *"code-review"* ]]; then
-    echo "  + Found extension 'code-review'"
-  else
-    echo "  + Installing extension 'code-review'"
-    gemini extensions install https://github.com/gemini-cli-extensions/code-review --consent &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini-cli-code-review_installation.log
-  fi
-  if [[ "$extensions" == *"conductor"* ]]; then
-    echo "  + Found extension 'conductor'"
-  else
-    echo "  + Installing extension 'conductor'"
-    gemini extensions install https://github.com/gemini-cli-extensions/conductor --consent &> "$JUST_HOME"/logs/gemini/"$safe_dt"_gemini-cli-conductor_installation.log
-  fi
-  gemini_version=$(gemini --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'gemini-cli' ($gemini_version)."
-# opens Google gemini-cli
-gemini: _gemini-pnpm (_fix_deps "basename,echo,printf,set")
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && \
-    HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && \
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    echo "$dt [$HOST_NAME] [$progname] Start interactive session with 'Google gemini-cli'."
-  gemini
-  gemini_version=$(gemini --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'gemini-cli' ($gemini_version)."
 # upgrades Ubuntu and all seperately installed tools
 upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm,set,sudo,wget")
   #!/usr/bin/env bash
@@ -435,8 +384,12 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
     echo "  !!! user cannot run passwordless sudo"
   fi
   sudo apt update -y && sudo apt upgrade -y
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)" && brew update && brew outdated && brew upgrade && brew cleanup
-  pipx upgrade-all
+  # TODO check if homebrew can be found or not
+  bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  echo >> /home/baldwin/.bashrc
+  echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> /home/baldwin/.bashrc
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)" && brew update && brew outdated && brew upgrade && brew cleanup
+  # pipx upgrade-all
   arch=$(uname -m)
   if [[ "$arch" == *arm* ]]; then
     sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_arm64
@@ -532,13 +485,13 @@ appinspector: _appinspector-install
   mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     echo "    [02/06] Running AppInspector (HTML)..."
-    if appinspector analyze --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log >/dev/null; then
+    if appinspector analyze -g **/tests/**,**/.git/**,**/test/**,**/node_modules/** --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log >/dev/null; then
       echo "    [02/06] AppInspector HTML output completed successfully."
     else
       echo "  !!! WARNING: AppInspector HTML output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_html.log"
     fi
     echo "    [03/06] Running AppInspector (SARIF)..."
-    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log >/dev/null; then
+    if appinspector analyze -g **/tests/**,**/.git/**,**/test/**,**/node_modules/** --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log >/dev/null; then
       echo "    [03/06] AppInspector SARIF output completed successfully."
     else
       echo "  !!! WARNING: AppInspector SARIF output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_sarif.log"
@@ -572,7 +525,7 @@ cloc:
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     echo "## Lines of Code (LOC) in 'src/' folder:" > "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
     echo ""  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
-    cloc "$JUST_HOME"/src/ --timeout 120 --ignored="$JUST_HOME"/output/cloc/"$dt"_cloc_ignored.txt  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
+    cloc "$JUST_HOME"/src/ --not-match-d='test' --not-match-d='node_modules' --timeout 120 --ignored="$JUST_HOME"/output/cloc/"$dt"_cloc_ignored.txt  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
     echo "    [02/02] Calculated LOC."
   else
     echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
@@ -956,7 +909,7 @@ kics: _kics-brew
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
     echo "    [02/07] Running KICS scan..."
-    if kics scan -p "$JUST_HOME/src/" -o "$JUST_HOME/src/$TEMP_FOLDER" -e "$JUST_HOME"/src/**/test -e "/$JUST_HOME"/src/**/tests --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore; then
+    if kics scan -p "$JUST_HOME/src/" -o "$JUST_HOME/src/$TEMP_FOLDER" -e "$JUST_HOME"/src/**/node_modules -e "$JUST_HOME"/src/**/test -e "/$JUST_HOME"/src/**/tests --no-color --silent --report-formats "all" --output-name "kics-result" --exclude-gitignore; then
       echo "    [02/07] KICS scan completed successfully."
     else
       echo "  !!! WARNING: KICS scan completed with errors or findings. Check logs for details."
@@ -1136,6 +1089,7 @@ opengrep: _opengrep-wget
       --taint-intrafile \
       --exclude=test \
       --exclude=tests \
+      --exclude=node_modules \
       --text \
       --experimental \
       --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt; then
@@ -1154,6 +1108,7 @@ opengrep: _opengrep-wget
       --severity=ERROR \
       --exclude=test \
       --exclude=tests \
+      --exclude=node_modules \
       --sarif \
       --experimental \
       --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif; then
@@ -1335,7 +1290,12 @@ unpack:
   if "$found"; then
     if ls "$JUST_HOME"/input/*.zip 1> /dev/null 2>&1; then
       for zipfile in "$JUST_HOME"/input/*.zip; do
-        unzip -qq -o "$zipfile" -d "$JUST_HOME"/src/
+        zip_name="$(basename "$zipfile" .zip)"
+        clean_name="$(printf '%s' "$zip_name" \
+          | sed 's/[^A-Za-z0-9_-]/_/g' \
+          | sed 's/_\+/_/g')"
+        mkdir -p "$JUST_HOME"/src/"$clean_name"
+        unzip -qq -o "$zipfile" -d "$JUST_HOME"/src/"$clean_name"
       done
       echo "    [03/03] Unzipped ZIP archives to '/src' folder."
     fi
