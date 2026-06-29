@@ -430,7 +430,6 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
     fi
   fi
   dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI || true
-  # pnpm update
   if command -v gemini >/dev/null 2>&1; then
     gemini extensions update --all
   fi
@@ -623,8 +622,12 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
   # Detect ALL languages present in /src (including subfolders)
   echo "    [02/07] Detecting languages..."
   languages=()
-  
-  if find "$JUST_HOME"/src -name "package.json" -o -name "package-lock.json" -o -name "*.js" -o -name "*.ts" 2>/dev/null | head -1 | grep -q .; then
+  # Initialize languages array if not already defined
+  if [[ -z "${languages[@]}" ]]; then
+    declare -a languages=()
+  fi
+  languages+=("javascript")
+  if find "$JUST_HOME"/src -type f \( -name "package.json" -o -name "*.js" -o -name "*.ts" \) 2>/dev/null | grep -q .; then
     languages+=("javascript")
     echo "      ✓ JavaScript/TypeScript detected"
   fi
