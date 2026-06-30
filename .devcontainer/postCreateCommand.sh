@@ -33,8 +33,8 @@ case ":$PATH:" in
   *) export PATH="$PNPM_HOME:$PATH" ;;
 esac
 
-# sarif-tools and strix-agent
-pipx install sarif-tools strix-agent -qq && pipx ensurepath
+# sarif-tools
+pipx install sarif-tools -qq && pipx ensurepath
 
 # jsluice
 go install github.com/BishopFox/jsluice/cmd/jsluice@latest

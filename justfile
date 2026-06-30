@@ -383,7 +383,8 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   else
     echo "  !!! user cannot run passwordless sudo"
   fi
-  sudo apt update -y && sudo apt upgrade -y
+  curl -sSL https://strix.ai/install | bash
+  sudo apt update -y && sudo apt upgrade -y && sudo apt install gradle # needed for codeql
   # TODO check if homebrew can be found or not
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   echo >> ~/.bashrc
@@ -626,7 +627,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
   if [[ -z "${languages[@]}" ]]; then
     declare -a languages=()
   fi
-  languages+=("javascript")
+  #languages+=("javascript")
   if find "$JUST_HOME"/src -type f \( -name "package.json" -o -name "*.js" -o -name "*.ts" \) 2>/dev/null | grep -q .; then
     languages+=("javascript")
     echo "      ✓ JavaScript/TypeScript detected"
@@ -651,7 +652,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
     languages+=("csharp")
     echo "      ✓ C# detected"
   fi
-  if find "$JUST_HOME"/src \( -name "*.cpp" -o -name "*.c" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "CMakeLists.txt" \) 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -name "*.cpp" -o -name "*.c" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "CMakeLists.txt" 2>/dev/null | head -1 | grep -q .; then
     languages+=("cpp")
     echo "      ✓ C/C++ detected"
   fi
@@ -1266,7 +1267,7 @@ strix:
     if docker info > /dev/null 2>&1; then
       cd "$JUST_HOME"/output/strix
       echo "    [02/02] Running STRIX AI-powered vulnerability detection..."
-      if strix --target "$JUST_HOME"/src --instruction "Always perform static analysis first."; then
+      if ~/.strix/bin/strix --target "$JUST_HOME"/src --instruction "Always perform static analysis first."; then
         echo "    [02/02] STRIX completed successfully."
       else
         echo "  !!! WARNING: STRIX completed with errors or found vulnerabilities."
