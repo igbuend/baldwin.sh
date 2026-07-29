@@ -1,7 +1,6 @@
 #!/usr/bin/env just --justfile
 # shellcheck disable=SC1083,SC2148
 alias checksum := sha256
-alias inspect := appinspector
 alias loc := cloc
 alias osv := osv-scanner
 alias sarif_tools := csv
@@ -118,7 +117,6 @@ _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
     ["dirmngr"]="dirmngr"
     ["dnsutils"]="dnsutils"
     ["dos2unix"]="dos2unix"
-    ["dotnet-sdk-8.0"]="dotnet-sdk-8.0"
     ["du"]="coreutils"
     ["echo"]="coreutils"
     ["false"]="coreutils"
@@ -361,7 +359,6 @@ doit:
   just sha256
   just unpack
   just cloc
-  just appinspector
   just osv-scanner
   just gitleaks
   just opengrep
@@ -383,7 +380,7 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   else
     echo "  !!! user cannot run passwordless sudo"
   fi
-  curl -sSL https://strix.ai/install | bash
+  #curl -sSL https://strix.ai/install | bash
   sudo apt update -y && sudo apt upgrade -y && sudo apt install gradle # needed for codeql
   # TODO check if homebrew can be found or not
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -430,10 +427,6 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
       fi
     fi
   fi
-  dotnet tool update --global Microsoft.CST.ApplicationInspector.CLI || true
-  if command -v gemini >/dev/null 2>&1; then
-    gemini extensions update --all
-  fi
   mkdir -p "$JUST_HOME"/tmp
   cd "$JUST_HOME"/tmp
   rm -rf codeql
@@ -449,72 +442,6 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$safe_dt"_dpkg.log
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# Verifies installation of Microsoft AppInspector
-_appinspector-install:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && \
-    HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && \
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Microsoft AppInspector'."
-  if ! [ -d "$JUST_HOME/logs/appinspector/" ] ; then
-    mkdir -p "$JUST_HOME"/logs/appinspector
-  fi
-  if ! command -v dotnet >/dev/null 2>&1; then
-    echo "  !!! dotnet not installed (will never happen, but I have a cat). Try installing it with 'just _dotnet'."
-  else
-    if ! command -v appinspector >/dev/null 2>&1; then
-      printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-      dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI  &> "$JUST_HOME"/logs/appinspector/"$safe_dt"_dotnet_appinspector_installation.log
-    fi
-  fi
-  appinspector_version=$(appinspector --version || true)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'Microsoft Appinspector' ($appinspector_version)."
-# analyses technology with AppInspector tool over sources in '/src'
-appinspector: _appinspector-install
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && \
-    HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && \
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1 && \
-    echo "$dt [$HOST_NAME] [$progname] Start run."
-  mkdir -p "$JUST_HOME"/output/{appinspector,sarif} && mkdir -p "$JUST_HOME"/logs/appinspector && mkdir -p "$JUST_HOME"/src/ && echo "    [01/04] Created work folders."
-  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    echo "    [02/06] Running AppInspector (HTML)..."
-    if appinspector analyze -g **/tests/**,**/.git/**,**/test/**,**/node_modules/** --single-threaded --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.html --output-file-format html --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_html.log >/dev/null; then
-      echo "    [02/06] AppInspector HTML output completed successfully."
-    else
-      echo "  !!! WARNING: AppInspector HTML output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_html.log"
-    fi
-    echo "    [03/06] Running AppInspector (SARIF)..."
-    if appinspector analyze -g **/tests/**,**/.git/**,**/test/**,**/node_modules/** --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif --output-file-format sarif --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_sarif.log >/dev/null; then
-      echo "    [03/06] AppInspector SARIF output completed successfully."
-    else
-      echo "  !!! WARNING: AppInspector SARIF output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_sarif.log"
-    fi
-    if [ ! -f "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif ]; then
-      echo "  !!! ERROR: AppInspector did not create SARIF output file."
-      printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no SARIF output."
-      exit 1
-    fi
-    echo "    [04/06] Running AppInspector (TXT)..."
-    if appinspector analyze --file-timeout 500000 --disable-archive-crawling --log-file-path "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_text.log --no-file-metadata --log-file-level Information --output-file-path "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.text --output-file-format text --no-show-progress -s "$JUST_HOME"/src/ 2>&1 | tee -a "$JUST_HOME"/logs/appinspector/"$safe_dt"_appinspector_text.log >/dev/null; then
-      echo "    [04/06] AppInspector TXT output completed successfully."
-    else
-      echo "  !!! WARNING: AppInspector TXT output completed with errors. Check $JUST_HOME/logs/appinspector/"$safe_dt"_appinspector_text.log"
-    fi
-    rm -f "$JUST_HOME"/output/sarif/*appinspector.sarif 2>/dev/null || true
-    echo "    [05/06] Removed earlier APPINSPECTOR SARIF output from '/output/sarif' folder."
-    cp "$JUST_HOME"/output/appinspector/"$safe_dt"_appinspector.sarif "$JUST_HOME"/output/sarif/"$safe_dt"_appinspector.sarif && echo "    [06/06] Copied SARIF output to '/output/sarif' folder."
-  else
-    echo "  !!! ERROR: The source code folder is empty. Please unpack the sources with 'just unpack'."
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no source code."
-    exit 1
-  fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # show Lines of Code (LOC) for sources in '/src'
 cloc:
@@ -628,31 +555,31 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
     declare -a languages=()
   fi
   #languages+=("javascript")
-  if find "$JUST_HOME"/src -type f \( -name "package.json" -o -name "*.js" -o -name "*.ts" \) 2>/dev/null | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "package.json" -o -name "*.js" -o -name "*.ts" -print -quit | grep -q .; then
     languages+=("javascript")
     echo "      ✓ JavaScript/TypeScript detected"
   fi
-  if find "$JUST_HOME"/src -name "go.mod" -o -name "*.go" 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "go.mod" -o -name "*.go" -print -quit 2>/dev/null | grep -q .; then
     languages+=("go")
     echo "      ✓ Go detected"
   fi
-  if find "$JUST_HOME"/src -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" -o -name "*.java" 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "pom.xml" -o -name "build.gradle" -o -name "build.gradle.kts" -o -name "*.java" -print -quit 2>/dev/null | grep -q .; then
     languages+=("java")
     echo "      ✓ Java detected"
   fi
-  if find "$JUST_HOME"/src -name "requirements.txt" -o -name "setup.py" -o -name "pyproject.toml" -o -name "Pipfile" -o -name "*.py" 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "requirements.txt" -o -name "setup.py" -o -name "pyproject.toml" -o -name "Pipfile" -o -name "*.py" -print -quit 2>/dev/null | grep -q .; then
     languages+=("python")
     echo "      ✓ Python detected"
   fi
-  if find "$JUST_HOME"/src -name "Gemfile" -o -name "*.gemspec" -o -name "*.rb" 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "Gemfile" -o -name "*.gemspec" -o -name "*.rb" -print -quit 2>/dev/null | grep -q .; then
     languages+=("ruby")
     echo "      ✓ Ruby detected"
   fi
-  if find "$JUST_HOME"/src -name "*.csproj" -o -name "*.sln" -o -name "*.cs" 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "*.csproj" -o -name "*.sln" -o -name "*.cs" -print -quit 2>/dev/null | grep -q . ; then
     languages+=("csharp")
     echo "      ✓ C# detected"
   fi
-  if find "$JUST_HOME"/src -name "*.cpp" -o -name "*.c" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "CMakeLists.txt" 2>/dev/null | head -1 | grep -q .; then
+  if find "$JUST_HOME"/src -type f -name "*.cpp" -o -name "*.c" -o -name "*.cc" -o -name "*.h" -o -name "*.hpp" -o -name "CMakeLists.txt" -print -quit 2>/dev/null | grep -q .; then
     languages+=("cpp")
     echo "      ✓ C/C++ detected"
   fi
@@ -1101,23 +1028,24 @@ opengrep: _opengrep-wget
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    echo "    [02/05] Running Opengrep TXT scan (all severities)..."
-    if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
-      --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
-      --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
-      --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
-      --dataflow-traces \
-      --taint-intrafile \
-      --exclude=test \
-      --exclude=tests \
-      --exclude=node_modules \
-      --text \
-      --experimental \
-      --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt; then
-      echo "    [02/05] Opengrep TXT scan completed successfully."
-    else
-      echo "  !!! WARNING: Opengrep TXT scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_txt.log"
-    fi
+    #echo "    [02/05] Running Opengrep TXT scan (all severities)..."
+    #if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
+    #  --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
+    #  --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
+    #  --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
+    #  --dataflow-traces \
+    #  --taint-intrafile \
+    #  --exclude=test \
+    #  --exclude=tests \
+    #  --exclude=__tests__ \
+    #  --exclude=node_modules \
+    #  --text \
+    #  --experimental \
+    #  --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt; then
+    #  echo "    [02/05] Opengrep TXT scan completed successfully."
+    #else
+    #  echo "  !!! WARNING: Opengrep TXT scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_txt.log"
+    #fi
     echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
     if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
@@ -1129,9 +1057,9 @@ opengrep: _opengrep-wget
       --severity=ERROR \
       --exclude=test \
       --exclude=tests \
+      --exclude=__tests__ \
       --exclude=node_modules \
       --sarif \
-      --experimental \
       --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif; then
       echo "    [03/05] Opengrep SARIF scan completed successfully."
     else

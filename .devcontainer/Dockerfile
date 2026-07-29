@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/devcontainers/base:ubuntu
+FROM mcr.microsoft.com/devcontainers/base:ubuntu-24.04
 # It is relatively straightforward to change to Debian/Kali. Been there, done that, got the T-Shirt.
 # Not going back, most 3rd party apps only support Ubuntu out of the box and my time is valuable.
 ENV USER_UID=1688
@@ -26,11 +26,11 @@ RUN export DEBIAN_FRONTEND=noninteractive \
       dirmngr \
       dnsutils \
       dos2unix \
-      dotnet-sdk-8.0 \
       fuse-overlayfs \
       gawk \
       git \
       gnupg2 \
+      gzip \
       golang \
       gradle \
       jq \

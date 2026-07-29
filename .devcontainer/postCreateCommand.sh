@@ -69,10 +69,6 @@ if cd "$JUST_HOME"/data; then
   fi
 fi
 
-sudo dotnet workload update
-dotnet tool install --global Microsoft.CST.ApplicationInspector.CLI
-sudo dotnet workload update
-
 if [[ -d ".git" ]]; then
   git config --global --add safe.directory .
   pre-commit install
@@ -84,11 +80,10 @@ export dt
 export PATH=$PATH:/$HOME/.local/bin:/$HOME/.dotnet/tools # for sarif
 mkdir -p "$JUST_HOME"/logs/dpkg
 # shellcheck disable=SC2129 # fix later
-echo "Microsoft Appinspector version: $(appinspector --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "Checkmarx KICS version: $(docker run --rm --quiet docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "Google osv-scanner version: $(docker run --rm --quiet ghcr.io/google/osv-scanner:latest --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
+echo "osv --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 echo "" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 
