@@ -80,11 +80,6 @@ export dt
 export PATH=$PATH:/$HOME/.local/bin:/$HOME/.dotnet/tools # for sarif
 mkdir -p "$JUST_HOME"/logs/dpkg
 # shellcheck disable=SC2129 # fix later
-echo "Checkmarx KICS version: $(docker run --rm --quiet docker.io/checkmarx/kics:latest version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "SARIF tools version: $(sarif --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "opengrep version: $(opengrep --version)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "osv --version | head -n 1)" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
-echo "" >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 dpkg -l >> "$JUST_HOME"/logs/dpkg/"$dt"_dpkg.log
 
 # implement terminal input logging

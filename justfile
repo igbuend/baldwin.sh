@@ -1060,6 +1060,7 @@ opengrep: _opengrep-wget
       --exclude=__tests__ \
       --exclude=node_modules \
       --sarif \
+      --experimental \
       --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_sarif.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.sarif; then
       echo "    [03/05] Opengrep SARIF scan completed successfully."
     else
