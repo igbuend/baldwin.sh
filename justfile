@@ -388,7 +388,7 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> ~/.bashrc
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)" && brew update && brew outdated && brew upgrade && brew cleanup
   # pipx upgrade-all
-  
+
   brew install osv-scanner
   og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
   if [[ -n "$og_version" ]]; then
@@ -537,7 +537,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
     mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/data/codeql/codeql-databases && \
     mkdir -p "$JUST_HOME"/src && \
-    echo "    [01/07] Created work folders."  
+    echo "    [01/07] Created work folders."
   if ! command -v codeql >/dev/null 2>&1; then
     echo "  !!! ERROR: CodeQL CLI not found. Run 'just _codeql-install' first."
     exit 1
@@ -577,20 +577,20 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
     languages+=("cpp")
     echo "      ✓ C/C++ detected"
   fi
-  
+
   if [ ${#languages[@]} -eq 0 ]; then
     echo "  !!! ERROR: No supported languages detected. Supported: javascript, python, java, go, ruby, csharp, cpp"
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with ERROR - no languages detected."
     exit 1
   fi
-  
+
   echo "    [03/07] Detected ${#languages[@]} language(s): ${languages[*]}"
 
   if [ -d "$JUST_HOME/src/" ] && [ -n "$(find "$JUST_HOME/src" -mindepth 1 -print -quit 2>/dev/null)" ]; then
     # Database cluster location
     export DB_DIR="$JUST_HOME/data/codeql/codeql-databases/${safe_dt}"
     mkdir -p "$DB_DIR"
-    
+
     # Build language flags for db-cluster
     language_flags=""
     for lang in "${languages[@]}"; do
@@ -607,7 +607,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
         echo "  !!! WARNING: CodeQL database creation had issues. Check logs."
       fi
     done
-    
+
     # Analyze each language database and generate SARIF
     echo "    [04/07] Running CodeQL analysis on each language..."
     total_results=0
@@ -641,11 +641,11 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
         echo "      !!! WARNING: Database for $lang not found at $lang_db"
       fi
     done
-    
+
     # Copy all SARIF files to /output/sarif
     echo "    [05/07] Moving SARIF results to '/output/sarif'..."
     mv --force "$JUST_HOME"/output/sarif/*codeql*.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
-    
+
     for lang in "${languages[@]}"; do
       sarif_file="$JUST_HOME/output/codeql/${safe_dt}_codeql_${lang}.sarif"
       if [ -f "$sarif_file" ]; then
@@ -653,7 +653,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
         echo "      ✓ Copied ${lang} SARIF to /output/sarif"
       fi
     done
-    
+
     # Optionally merge SARIF files into one combined report
     echo "    [06/07] Creating combined SARIF report..."
     combined_sarif="$JUST_HOME/output/codeql/${safe_dt}_codeql_combined.sarif"
@@ -687,31 +687,6 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
   fi
   codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run (CodeQL $codeql_version) with $total_results total findings across ${#languages[@]} language(s)."
-# performs SCA with OWASP depscan over sources in '/src' (legacy)
-_depscan:
-  #!/usr/bin/env bash
-  set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start OWASP depscan (Warning: can take a long time)."
-  mkdir -p "$JUST_HOME"/output/depscan/ && mkdir -p "$JUST_HOME"/tmp/ && mkdir -p "$JUST_HOME"/data/depscan/vdb_home && echo "    [01/07] Created work folders."
-  if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/tmp/depscan.XXX)"
-    TEMP_FOLDER="${TEMP_DIR##*/}"
-    cd "$TEMP_DIR" # whatever reports folder defined, depscan put bom.json with sources
-    docker run --quiet --rm -e VDB_HOME=/db -v "$JUST_HOME"/src:/app -v "$JUST_HOME"/data/depscan/vdb_home:/db -v "$TEMP_DIR":/reports \
-      ghcr.io/owasp-dep-scan/dep-scan \
-      depscan --no-banner --src /app --reports-dir /reports --profile appsec --explain && echo "    [02/07] Ran depscan with output in temporary folder."
-    cp -r "$TEMP_DIR" "$JUST_HOME"/output/depscan/ && echo "    [03/07] Copied output to '/output/depscan' folder."
-    if cd "$JUST_HOME"/output/depscan/; then
-      mv -T "$TEMP_FOLDER" "$dt" && echo "    [04/07] Renamed output folder to start-time."
-    fi
-    cd "$JUST_HOME"
-    touch "$JUST_HOME"/src/bom.json && mv "$JUST_HOME"/src/bom.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [05/07] Moved bom.json to report folder."
-    touch "$JUST_HOME"/src/bom.vdr.json && mv "$JUST_HOME"/src/bom.vdr.json "$JUST_HOME"/output/depscan/"$dt"/ && echo "    [06/07] Moved bom.vdr.json to report folder."
-    rm -rf "$TEMP_DIR" 1> /dev/null 2>&1 || true && echo "    [07/07] Removed temporary folder."
-  else
-    echo "  !!! The source code directory '/src' is empty. Please unpack the sources with 'just unpack'."
-  fi
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
 # installs 'gitleaks' using Homebrew. Needs Internet access.
 _gitleaks-brew: _homebrew
   #!/usr/bin/env bash
@@ -942,8 +917,8 @@ _ocr-curl: (_fix_deps "command,curl,echo,hostname,printf")
   set -euo pipefail
   JUST_HOME="$PWD" && \
     HOST_NAME="$(hostname)" && \
-    progname="$(basename "$0")" && 
-    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && 
+    progname="$(basename "$0")" &&
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 &&
     echo "$dt [$HOST_NAME] [$progname] Check installation of 'Alibaba Open Code Review'."
   if ! command -v ocr >/dev/null 2>&1; then
     echo "    [01/01] Installing 'Alibaba Open Code Review'."
@@ -1022,7 +997,7 @@ opengrep: _opengrep-wget
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-   
+
        echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
     if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
@@ -1205,7 +1180,7 @@ unpack:
   # TODO check if archives not password protected / are not corrupted
   echo "    [01/03] Creating work folders..."
   mkdir -p "$JUST_HOME"/{src,input} && \
-    mkdir -p "$JUST_HOME"/output/unpack 
+    mkdir -p "$JUST_HOME"/output/unpack
   echo "    [02/03] Searching for sourcecode archives in /input..."
   found=false
   for file in "$JUST_HOME"/input/*.{zip,7z,tar.bz}; do
