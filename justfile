@@ -80,7 +80,7 @@ output: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
 # validates and installs necessary tools for Ubuntu LTS
 _fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
   #!/usr/bin/env bash
-  # to fix broken Ubuntu installations at client.
+  # to fix broken Debian/Ubuntu installations at client.
   set -euo pipefail
   JUST_HOME="$PWD" && \
     HOST_NAME="$(hostname)" && \
@@ -438,7 +438,7 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   mkdir -p "$JUST_HOME"/logs/dpkg
   dpkg -l > "$JUST_HOME"/logs/dpkg/"$safe_dt"_dpkg.log
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# show Lines of Code (LOC) for sources in '/src'
+# calculate Lines of Code (LOC) for sources in the 'src/' folder
 cloc:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -447,13 +447,25 @@ cloc:
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     echo "## Lines of Code (LOC) in 'src/' folder:" > "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
     echo ""  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
-    cloc "$JUST_HOME"/src/ --not-match-d='test' --not-match-d='node_modules' --timeout 120 --ignored="$JUST_HOME"/output/cloc/"$dt"_cloc_ignored.txt  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
+    cloc "$JUST_HOME"/src/ \
+      --not-match-d='bin' \
+      --not-match-d='build' \
+      --not-match-d='dist' \
+      --not-match-d='obj' \
+      --not-match-d='target' \
+      --not-match-d='test' \
+      --not-match-d='tests' \
+      --not-match-d='__tests__' \
+      --not-match-d='vendor' \
+      --not-match-d='node_modules' \
+      --timeout 120 \
+      --ignored="$JUST_HOME"/output/cloc/"$dt"_cloc_ignored.txt  >> "$JUST_HOME"/output/cloc/"$dt"_cloc.txt
     echo "    [02/02] Calculated LOC."
   else
-    echo "  !!! The source code directory is empty. Please unpack the sources with 'just unpack'."
+    echo "  !!! The source code folder is empty. Please unpack the sources with 'just unpack'."
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run."
-# creates summary CVS reports from all SARIF files present in '/output/sarif' using Microsoft sarif-tools
+# create summary CVS reports from all SARIF files present in 'output/sarif/' using Microsoft sarif-tools
 csv:
   #!/usr/bin/env bash
   set -euo pipefail
