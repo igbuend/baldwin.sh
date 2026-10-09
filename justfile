@@ -388,13 +388,8 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> ~/.bashrc
   eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)" && brew update && brew outdated && brew upgrade && brew cleanup
   # pipx upgrade-all
-  arch=$(uname -m)
-  if [[ "$arch" == *arm* ]]; then
-    sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_arm64
-  else
-    sudo wget --quiet --output-document /usr/local/bin/osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
-  fi
-  sudo chmod a+x /usr/local/bin/osv-scanner || true
+  
+  brew install osv-scanner
   og_version=$(curl -s https://api.github.com/repos/opengrep/opengrep/releases/latest | grep -oP '"tag_name": "\K(.*)(?=")')
   if [[ -n "$og_version" ]]; then
     if [[ "$arch" == *arm* ]]; then
@@ -554,7 +549,6 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
   if [[ -z "${languages[@]}" ]]; then
     declare -a languages=()
   fi
-  #languages+=("javascript")
   if find "$JUST_HOME"/src -type f -name "package.json" -o -name "*.js" -o -name "*.ts" -print -quit | grep -q .; then
     languages+=("javascript")
     echo "      ✓ JavaScript/TypeScript detected"
@@ -1028,25 +1022,8 @@ opengrep: _opengrep-wget
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    #echo "    [02/05] Running Opengrep TXT scan (all severities)..."
-    #if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
-    #  --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
-    #  --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \
-    #  --exclude-rule="data.opengrep-rules.java.lang.correctness.hardcoded-conditional" \
-    #  --dataflow-traces \
-    #  --taint-intrafile \
-    #  --exclude=test \
-    #  --exclude=tests \
-    #  --exclude=__tests__ \
-    #  --exclude=node_modules \
-    #  --text \
-    #  --experimental \
-    #  --project-root="$JUST_HOME"/src "$JUST_HOME"/src &>>"$JUST_HOME"/logs/opengrep/"$safe_dt"_opengrep_txt.log > "$JUST_HOME"/output/opengrep/"$safe_dt"_opengrep.txt; then
-    #  echo "    [02/05] Opengrep TXT scan completed successfully."
-    #else
-    #  echo "  !!! WARNING: Opengrep TXT scan completed with errors. Check $JUST_HOME/logs/opengrep/"$safe_dt"_opengrep_txt.log"
-    #fi
-    echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
+   
+       echo "    [03/05] Running Opengrep SARIF scan (WARNING/ERROR only)..."
     if opengrep scan -f "$JUST_HOME"/data/opengrep-rules -f "$JUST_HOME"/data/trailofbits-rules \
       --exclude-rule="data.opengrep-rules.typescript.react.best-practice.define-styled-components-on-module-level" \
       --exclude-rule="data.opengrep-rules.typescript.react.portability.i18next.jsx-not-internationalized" \

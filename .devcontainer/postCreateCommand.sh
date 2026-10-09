@@ -91,4 +91,3 @@ echo '[[ "$SHLVL" -eq 2 ]] && mkdir -p '"$JUST_HOME/logs/script/" >> "$HOME"/.ba
 # shellcheck disable=SC2016
 echo '[[ "$SHLVL" -eq 2 ]] && '"script --quiet $JUST_HOME"/logs/script/'"$safe_dt"_script.log' >> "$HOME"/.bashrc
 exit 0
-
