@@ -47,7 +47,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
 # installs latest versions of all software (Ubuntu or MacOS)
-install: _homebrew _gitleaks-brew _kics-brew _noir-brew _osv-scanner-brew (_fix_deps "uname")
+install: _homebrew _gitleaks-brew _kics-brew _noir-brew _ocr-curl _osv-scanner-brew (_fix_deps "uname")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -1043,14 +1043,10 @@ _ocr-curl:
     progname="$(basename "$0")" &&
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 &&
     echo "$dt [$HOST_NAME] [$progname] Check installation of 'Alibaba Open Code Review'."
-  if ! command -v ocr >/dev/null 2>&1; then
-    echo "    [01/01] Installing 'Alibaba Open Code Review'."
+    echo "    [01/01] Installing/Upgrading 'Alibaba Open Code Review'."
     curl -fsSL https://raw.githubusercontent.com/alibaba/open-code-review/main/install.sh | sh
-  else
-    echo "    [01/01] 'Alibaba Open Code Review' is already installed."
-  fi
-  ocr_version=$(ocr --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Alibaba Open Code Review' ($ocr_version)."
+  ocr_version=$(ocr --version 2>/dev/null | head -1 ||echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] 'Alibaba ($ocr_version) installed."
 # verifies installation of 'Opengrep'
 _opengrep-wget: (_fix_deps "command,echo,git,printf,sudo,wget")
   #!/usr/bin/env bash
