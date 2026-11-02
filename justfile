@@ -847,15 +847,29 @@ _homebrew: (_fix_deps "basename,case,command,curl,echo,eval,export,find,hostname
 _kics-brew: _homebrew
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'kics'."
-  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'kics'."
     mkdir -p "$JUST_HOME"/logs/homebrew
-  fi
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/opt/homebrew/opt/kics/share/kics/assets/queries
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
   if ! command -v kics ; then
-    brew install kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
+    brew install -y kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
     export PATH=/home/linuxbrew/.linuxbrew/opt/kics/bin:$PATH
   fi
   kics_version=$(kics version 2>/dev/null | head -1 || echo "unknown")
@@ -878,10 +892,20 @@ kics: _kics-brew
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
-  if ! command -v kics >/dev/null 2>&1 ; then
-    export PATH=/home/linuxbrew/.linuxbrew/opt/kics/bin:$PATH
-  fi
-  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/opt/homebrew/opt/kics/share/kics/assets/queries
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac  
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
