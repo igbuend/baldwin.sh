@@ -46,6 +46,28 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
+# installs latest versions of all software (Ubuntu or MacOS)
+install: _homebrew (_fix_deps "uname")
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    JUST_BASE="${JUST_HOME##*/}" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start installation and/or upgrade of software."
+  mkdir -p "$JUST_HOME"/logs 
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval 
+      ;;
+    *) echo "unsupported" ;;
+  esac
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] End installation/update of required software"
 # creates a backup of only the '/output' folder in '/backup'
 output: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   #!/usr/bin/env bash
@@ -78,7 +100,7 @@ output: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End backup of /output. $confirm"
   exit "$exit_code"
 # validates and installs necessary tools for Ubuntu LTS
-_fix_deps DEPS="apt,command,compgen,echo,mkdir,printf,sudo,true,xargs":
+_fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
   #!/usr/bin/env bash
   # to fix broken Debian/Ubuntu installations at client.
   set -euo pipefail
@@ -386,7 +408,7 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   echo >> ~/.bashrc
   echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)"' >> ~/.bashrc
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)" && brew update && brew outdated && brew upgrade && brew cleanup
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv bash)" && brew update -y && brew upgrade -y && brew cleanup
   # pipx upgrade-all
 
   brew install osv-scanner
@@ -758,24 +780,56 @@ gitleaks: _gitleaks-brew
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'gitleaks' run with $GITLEAKS_RESULTS findings."
 # installs Homebrew if not already installed.
-_homebrew: (_fix_deps "basename,echo,eval,find,mkdir,printf,set,sudo")
+_homebrew: (_fix_deps "basename,case,command,curl,echo,eval,export,find,hostname,mkdir,printf,set,source")
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
-  source /home/"$USER"/.bashrc
-  sudo apt -y update && sudo apt -y install build-essential curl gcc git ruby-full
-  if ! command -v brew >/dev/null 2>&1; then
-    if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Homebrew'."
+  mkdir -p "$JUST_HOME"/logs 
+  case "$OSTYPE" in
+    darwin*)
       mkdir -p "$JUST_HOME"/logs/homebrew
-    fi
-    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    export NONINTERACTIVE=1 && /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
-    echo >> /home/"$USER"/.bashrc
-    echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/"$USER"/.bashrc
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-    source /home/"$USER"/.bashrc
-    brew analytics off
-  fi
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      if ! command -v brew >/dev/null 2>&1; then
+        printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+        export NONINTERACTIVE=1 
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
+        (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zprofile
+        (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.bashrc
+        (echo; echo 'eval "$(/opt/homebrew/bin/brew shellenv)"') >> ~/.zshrc
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        brew analytics off
+      else
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        brew analytics off
+        printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+        brew update -y &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_update.log
+        brew upgrade -y &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_upgrade.log
+      fi
+      if (( BASH_VERSINFO[0] < 4 )) then
+        brew install bash
+      fi
+    ;;
+    linux*)
+      if ! command -v brew >/dev/null 2>&1; then
+        mkdir -p "$JUST_HOME"/logs/homebrew
+        printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+        export NONINTERACTIVE=1 && /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_installation.log
+        echo >> /home/"$USER"/.bashrc
+        echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/"$USER"/.bashrc
+      fi
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      source /home/"$USER"/.bashrc
+      brew analytics off
+      printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+      brew update -y &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_update.log
+      brew upgrade -y &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_upgrade.log
+    ;;
+    *) echo "unsupported"; exit 1 ;;
+  esac
   brew_version=$(brew --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Homebrew' ($brew_version)."
 # installs 'kics' using Homebrew. Needs Internet access.

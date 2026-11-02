@@ -78,3 +78,6 @@ data/
 node_modules
 .pnpm_store
 call_graph.dot
+
+# Mac
+.DS_Store
