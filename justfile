@@ -47,7 +47,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
 # installs latest versions of all software (Ubuntu or MacOS)
-install: _homebrew (_fix_deps "uname")
+install: _homebrew _gitleaks-brew (_fix_deps "uname")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -62,7 +62,7 @@ install: _homebrew (_fix_deps "uname")
       eval "$(/opt/homebrew/bin/brew shellenv)"
       ;;
     linux*)
-      eval 
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
       ;;
     *) echo "unsupported" ;;
   esac
@@ -729,9 +729,20 @@ _gitleaks-brew: _homebrew
   if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
     mkdir -p "$JUST_HOME"/logs/homebrew
   fi
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-  brew install gitleaks  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_gitleaks_installation.log
+  brew install -y gitleaks  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_gitleaks_installation.log
   gitleaks_version=$(gitleaks --version)
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'gitleaks' ($gitleaks_version)."
 # detects secrets like passwords, API keys, and tokens in '/src'
@@ -1235,7 +1246,7 @@ strix:
 # unpacks source archive(s) into '/src'
 unpack:
   #!/usr/bin/env bash
-  set -euxo pipefail
+  set -euo pipefail
   JUST_HOME="$PWD" && \
     HOST_NAME="$(hostname)" && \
     progname="$(basename "$0")" && \
