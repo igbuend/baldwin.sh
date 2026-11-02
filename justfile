@@ -47,7 +47,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
 # installs latest versions of all software (Ubuntu or MacOS)
-install: _homebrew _gitleaks-brew (_fix_deps "uname")
+install: _homebrew _gitleaks-brew _kics-brew _noir-brew (_fix_deps "uname")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -722,7 +722,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
   codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run (CodeQL $codeql_version) with $total_results total findings across ${#languages[@]} language(s)."
 # installs 'gitleaks' using Homebrew. Needs Internet access.
-_gitleaks-brew: _homebrew
+_gitleaks-brew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'gitleaks'."
@@ -951,22 +951,33 @@ kics: _kics-brew
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
 # installs Homebrew if needed (required by OWASP Noir installation). Needs Internet access.
-_noir-brew: _homebrew
+_noir-brew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'OWASP Noir'."
   if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
     mkdir -p "$JUST_HOME"/logs/homebrew
   fi
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
   if ! command -v brew >/dev/null 2>&1; then
     echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
   else
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    brew install noir &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
+    brew install -y noir &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
   fi
   noir_version=$(noir --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'OWASP Noir' (Noir $noir_version)."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] 'OWASP Noir' (Noir $noir_version) is installed."
 # runs OWASP Noir to determine Attack Surface (not using AI)
 noir: _noir-brew
   #!/usr/bin/env bash
@@ -982,12 +993,23 @@ noir: _noir-brew
     mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac    
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     echo "    [02/04] Running OWASP Noir scan..."
     if noir -b "$JUST_HOME"/src -T --format sarif --no-color -o "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif 2>&1 | tee "$JUST_HOME"/logs/noir/"$safe_dt"_noir.sarif.log; then
       noir_version=$(noir --version 2>/dev/null || echo "unknown")
-      echo "    [02/04] Successfully ran Noir $noir_version and created report in SARIF format."
+      echo "    [02/04] Successfully ran Noir $noir_version and created SARIF report created."
     else
       echo "  !!! WARNING: Noir completed with errors. Check $JUST_HOME/logs/noir/"$safe_dt"_noir.sarif.log"
     fi
