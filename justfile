@@ -47,7 +47,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
 # installs latest versions of all software (Ubuntu or MacOS)
-install: _homebrew _gitleaks-brew _kics-brew _noir-brew (_fix_deps "uname")
+install: _homebrew _gitleaks-brew _kics-brew _noir-brew _osv-scanner-brew (_fix_deps "uname")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -1035,7 +1035,7 @@ noir: _noir-brew
   noir_version=$(noir --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
 # verifies installation of 'Alibaba Open Code Review (ocr)''
-_ocr-curl: (_fix_deps "command,curl,echo,hostname,printf")
+_ocr-curl:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -1171,11 +1171,59 @@ opengrep: _opengrep-wget
   fi
   og_version=$(opengrep --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
-# runs Google OSV scanner for SCA over sources in '/src'
-osv-scanner: (_fix_deps "echo,jq,printf")
+# Installs Google OSV scanner with 'brew'
+_osv-scanner-brew:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google OSV Scanner'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
+  else
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    brew install -y osv-scanner &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_osv_installation.log
+  fi
+  osv_version=$(osv-scanner --version 2>/dev/null | head -1 ||echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Google $osv_version is installed."  
+# runs Google OSV scanner for SCA over sources in '/src'
+osv-scanner: _osv-scanner-brew (_fix_deps "jq")
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start run."
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac  
   if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
       # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
       if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
@@ -1186,7 +1234,6 @@ osv-scanner: (_fix_deps "echo,jq,printf")
         mkdir -p "$JUST_HOME"/src/ && \
         echo "    [01/04] Created work folders."
       echo "    [02/04] Running OSV-scanner (Markdown)..."
-      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
       if osv-scanner scan --format markdown -r "$JUST_HOME"/src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md; then
         echo "    [02/04] OSV-scanner Markdown output completed successfully."
       else
