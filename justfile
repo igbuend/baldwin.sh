@@ -29,6 +29,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
     -f "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
     --exclude=data \
     --exclude=backup \
+    --exclude='.env' \
     --exclude=tmp . 1>/dev/null \
     && echo "    [02/04] Created backup archive."
   cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ \
@@ -47,7 +48,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
 # installs latest versions of all software (Ubuntu or MacOS)
-install: _homebrew _gitleaks-brew _kics-brew _noir-brew _ocr-curl _osv-scanner-brew (_fix_deps "uname")
+install: _homebrew _gitleaks-brew _kics-brew _noir-brew _ocr-curl _osv-scanner-brew (_fix_deps "pbzip2,uname")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -82,7 +83,10 @@ output: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   mkdir -p "$JUST_HOME"/{tmp,backup,output} && \
     tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && \
     echo "    [01/04] Created work folders."
-  tar -C "$JUST_HOME" --use-compress-program="pbzip2" -cf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 output && \
+  tar -C "$JUST_HOME" --use-compress-program="pbzip2" \
+    --create \
+    --exclude='.env' \
+   -f "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 output 1>/dev/null && \
     echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 "$JUST_HOME"/backup/ && \
     rm "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 && \
@@ -113,6 +117,11 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
 
   bash_builtins=($(compgen -b))
 
+  # MacOS Homebrew mapping for common dependencies
+  declare -A homebrew_packages=(
+    ["gradle"]="gradle"
+    ["pbzip2"]="pbzip2"
+  )
   # Ubuntu package mapping for common dependencies
   declare -A ubuntu_packages=(
     ["asciinema"]="asciinema"
@@ -211,6 +220,7 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
   found_builtins=()
   found_path=()
   to_install=()
+  brew_to_install=()
   unknown_to_install=()
 
   IFS=',' read -ra deps_array <<< "$deps"
@@ -221,7 +231,7 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
     if [ -z "$dep" ]; then
       continue
     fi
-
+    
     # Check if it is a bash builtin
     if [[ " ${bash_builtins[*]} " =~ " ${dep} " ]]; then
       echo "      ✅ $dep - built into bash shell"
@@ -234,19 +244,37 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
         found_path+=("$dep")
       else
         # echo "      ⚠️   $dep - not found in path"
-        # Check if it's a Ubuntu package that might not be in PATH
-        pkg="${ubuntu_packages[$dep]:-$dep}"
-        if dpkg -l | grep -q "^ii  $pkg "; then
-          echo "      ✅ $dep - installed as Ubuntu package '$pkg'"
-        else
-          # If we get here, it's missing
-          echo "      ❌ $dep - missing"
-          if [[ -n "${ubuntu_packages[$dep]:-}" ]]; then
-            to_install+=("${ubuntu_packages[$dep]:-$dep}")
-          else
-            unknown_to_install+="$dep"
-          fi
-        fi
+        case "$OSTYPE" in
+          darwin*)
+            # Check if we can install with homebrew TODO
+            pkg="${homebrew_packages[$dep]:-$dep}"
+            if brew search "$pkg" &>/dev/null; then
+              # echo "      ✅ $dep - to be installed as MacOS Brew Formula '$pkg'"
+              echo "      ❌ $dep - missing, to be installed as MacOS Brew Formula '$pkg'"
+              brew_to_install+=("${homebrew_packages[$dep]:-$dep}")
+            else
+              # If we get here, it's missing
+              echo "      ❌ $dep - missing"
+              unknown_to_install+="$dep"
+            fi
+            ;;
+          linux*)
+            # Check if it's a Ubuntu package that might not be in PATH
+            pkg="${ubuntu_packages[$dep]:-$dep}"
+            if dpkg -l | grep -q "^ii  $pkg "; then
+              echo "      ✅ $dep - installed as Ubuntu package '$pkg'"
+            else
+              # If we get here, it's missing
+              echo "      ❌ $dep - missing"
+              if [[ -n "${ubuntu_packages[$dep]:-}" ]]; then
+                to_install+=("${ubuntu_packages[$dep]:-$dep}")
+              else
+                unknown_to_install+="$dep"
+              fi
+            fi
+            ;;
+          *) echo "unsupported" ;;
+        esac
       fi
     fi
   done
@@ -255,24 +283,34 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
   echo "      📋 Found bash builtins: ${#found_builtins[@]}"
   echo "      📋 Found in path: ${#found_path[@]}"
   echo "      📋 Missing known packages: ${#to_install[@]}"
+  echo "      📋 Missing known MacOS brew packages: ${#brew_to_install[@]}"
   echo "      📋 Missing unknown packages: ${#unknown_to_install[@]}"
 
-  if [ ${#to_install[@]} -gt 0 ] || [ ${#unknown_to_install[@]} -gt 0 ]  ; then
-    echo "    [05/07] Installing missing packages..."
-
-    if ! sudo -n true 2>/dev/null; then
-      echo "    ❌ Error: Cannot install packages - sudo access required"
-      echo "    Please run 'sudo apt update && sudo apt install ${to_install[*]}' manually"
+  if [ ${#brew_to_install[@]} -gt 0 ]; then
+    echo "    [05/07] Installing missing brew packages..."
+    echo "      📦 Known Brew packages to install: ${brew_to_install[*]}"
+    if ! brew install -y "${brew_to_install[@]}"; then
+      echo "  ❌ Error: Failed to install packages"
+      echo "  Attempt to install manually: brew install -y ${brew_to_install[*]}"
       exit 1
+    else
+        echo "  ✅ Successfully installed: ${brew_to_install[*]}"
     fi
-
-    if ! sudo apt update -y &>/dev/null; then
-      echo "    ❌ Error: Failed to update package lists"
-      exit 1
-    fi
-
+  fi
+  
     if [ ${#to_install[@]} -gt 0 ] ; then
       echo "      📦 Known packages to install: ${to_install[*]}"
+      if ! sudo -n true 2>/dev/null; then
+        echo "    ❌ Error: Cannot install packages - sudo access required"
+        echo "    Please run 'sudo apt update && sudo apt install ${to_install[*]}' manually"
+        exit 1
+      fi
+  
+      if ! sudo apt update -y &>/dev/null; then
+        echo "    ❌ Error: Failed to update package lists"
+        exit 1
+      fi
+  
       if ! sudo apt install -y "${to_install[@]}"; then
         echo "  ❌ Error: Failed to install packages"
         echo "  Attempt to install manually: sudo apt install -y ${to_install[*]}"
@@ -281,7 +319,7 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
         echo "  ✅ Successfully installed: ${to_install[*]}"
       fi
     fi
-
+    
     if [ ${#unknown_to_install[@]} -gt 0 ] ; then
       echo "      📦 Unknown packages to install: ${unknown_to_install[*]}"
       if ! sudo apt install -y "${unknown_to_install[@]}" &>/dev/null; then
@@ -292,9 +330,6 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
           echo "  ✅ Successfully installed: ${unknown_to_install[*]}"
       fi
     fi
-  else
-    echo "    [05/07] All packages already installed."
-  fi
 
   echo "    [06/07] Final verification..."
   final_missing=()
@@ -388,7 +423,7 @@ doit:
   just kics
   just csv
 # upgrades Ubuntu and all seperately installed tools
-upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm,set,sudo,wget")
+upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,gradle,mkdir,printf,rm,set,sudo,wget")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -403,7 +438,7 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
     echo "  !!! user cannot run passwordless sudo"
   fi
   #curl -sSL https://strix.ai/install | bash
-  sudo apt update -y && sudo apt upgrade -y && sudo apt install gradle # needed for codeql
+  sudo apt update -y && sudo apt upgrade -y
   # TODO check if homebrew can be found or not
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   echo >> ~/.bashrc
