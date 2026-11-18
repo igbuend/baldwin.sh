@@ -110,6 +110,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
     -f "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 \
     --exclude=data \
     --exclude=backup \
+    --exclude='.env' \
     --exclude=tmp . 1>/dev/null \
     && echo "    [02/04] Created backup archive."
   cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_backup.tar.bz2 "$JUST_HOME"/backup/ \
@@ -128,7 +129,7 @@ backup: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run. $confirm"
   exit "$exit_code"
 # installs latest versions of all software (Ubuntu or MacOS)
-install: _homebrew _gitleaks-brew (_fix_deps "uname")
+install: _homebrew _gitleaks-brew _kics-brew _noir-brew _ocr-curl _osv-scanner-brew (_fix_deps "pbzip2,uname")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -163,7 +164,10 @@ output: (_fix_deps "basename,bzip2,cp,echo,mkdir,mktemp,pbzip2,printf,rm,tar")
   mkdir -p "$JUST_HOME"/{tmp,backup,output} && \
     tempfolder=$(mktemp -d "$JUST_HOME/tmp/XXXXXX") && \
     echo "    [01/04] Created work folders."
-  tar -C "$JUST_HOME" --use-compress-program="pbzip2" -cf "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 output && \
+  tar -C "$JUST_HOME" --use-compress-program="pbzip2" \
+    --create \
+    --exclude='.env' \
+   -f "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 output 1>/dev/null && \
     echo "    [02/04] Created archive in temporary folder."
   cp "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 "$JUST_HOME"/backup/ && \
     rm "$tempfolder"/"$safe_dt"_"$JUST_BASE"_scr_output.tar.bz2 && \
@@ -194,6 +198,11 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
 
   bash_builtins=($(compgen -b))
 
+  # MacOS Homebrew mapping for common dependencies
+  declare -A homebrew_packages=(
+    ["gradle"]="gradle"
+    ["pbzip2"]="pbzip2"
+  )
   # Ubuntu package mapping for common dependencies
   declare -A ubuntu_packages=(
     ["asciinema"]="asciinema"
@@ -292,6 +301,7 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
   found_builtins=()
   found_path=()
   to_install=()
+  brew_to_install=()
   unknown_to_install=()
 
   IFS=',' read -ra deps_array <<< "$deps"
@@ -302,7 +312,7 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
     if [ -z "$dep" ]; then
       continue
     fi
-
+    
     # Check if it is a bash builtin
     if [[ " ${bash_builtins[*]} " =~ " ${dep} " ]]; then
       echo "      ✅ $dep - built into bash shell"
@@ -315,19 +325,37 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
         found_path+=("$dep")
       else
         # echo "      ⚠️   $dep - not found in path"
-        # Check if it's a Ubuntu package that might not be in PATH
-        pkg="${ubuntu_packages[$dep]:-$dep}"
-        if dpkg -l | grep -q "^ii  $pkg "; then
-          echo "      ✅ $dep - installed as Ubuntu package '$pkg'"
-        else
-          # If we get here, it's missing
-          echo "      ❌ $dep - missing"
-          if [[ -n "${ubuntu_packages[$dep]:-}" ]]; then
-            to_install+=("${ubuntu_packages[$dep]:-$dep}")
-          else
-            unknown_to_install+="$dep"
-          fi
-        fi
+        case "$OSTYPE" in
+          darwin*)
+            # Check if we can install with homebrew TODO
+            pkg="${homebrew_packages[$dep]:-$dep}"
+            if brew search "$pkg" &>/dev/null; then
+              # echo "      ✅ $dep - to be installed as MacOS Brew Formula '$pkg'"
+              echo "      ❌ $dep - missing, to be installed as MacOS Brew Formula '$pkg'"
+              brew_to_install+=("${homebrew_packages[$dep]:-$dep}")
+            else
+              # If we get here, it's missing
+              echo "      ❌ $dep - missing"
+              unknown_to_install+="$dep"
+            fi
+            ;;
+          linux*)
+            # Check if it's a Ubuntu package that might not be in PATH
+            pkg="${ubuntu_packages[$dep]:-$dep}"
+            if dpkg -l | grep -q "^ii  $pkg "; then
+              echo "      ✅ $dep - installed as Ubuntu package '$pkg'"
+            else
+              # If we get here, it's missing
+              echo "      ❌ $dep - missing"
+              if [[ -n "${ubuntu_packages[$dep]:-}" ]]; then
+                to_install+=("${ubuntu_packages[$dep]:-$dep}")
+              else
+                unknown_to_install+="$dep"
+              fi
+            fi
+            ;;
+          *) echo "unsupported" ;;
+        esac
       fi
     fi
   done
@@ -336,24 +364,34 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
   echo "      📋 Found bash builtins: ${#found_builtins[@]}"
   echo "      📋 Found in path: ${#found_path[@]}"
   echo "      📋 Missing known packages: ${#to_install[@]}"
+  echo "      📋 Missing known MacOS brew packages: ${#brew_to_install[@]}"
   echo "      📋 Missing unknown packages: ${#unknown_to_install[@]}"
 
-  if [ ${#to_install[@]} -gt 0 ] || [ ${#unknown_to_install[@]} -gt 0 ]  ; then
-    echo "    [05/07] Installing missing packages..."
-
-    if ! sudo -n true 2>/dev/null; then
-      echo "    ❌ Error: Cannot install packages - sudo access required"
-      echo "    Please run 'sudo apt update && sudo apt install ${to_install[*]}' manually"
+  if [ ${#brew_to_install[@]} -gt 0 ]; then
+    echo "    [05/07] Installing missing brew packages..."
+    echo "      📦 Known Brew packages to install: ${brew_to_install[*]}"
+    if ! brew install -y "${brew_to_install[@]}"; then
+      echo "  ❌ Error: Failed to install packages"
+      echo "  Attempt to install manually: brew install -y ${brew_to_install[*]}"
       exit 1
+    else
+        echo "  ✅ Successfully installed: ${brew_to_install[*]}"
     fi
-
-    if ! sudo apt update -y &>/dev/null; then
-      echo "    ❌ Error: Failed to update package lists"
-      exit 1
-    fi
-
+  fi
+  
     if [ ${#to_install[@]} -gt 0 ] ; then
       echo "      📦 Known packages to install: ${to_install[*]}"
+      if ! sudo -n true 2>/dev/null; then
+        echo "    ❌ Error: Cannot install packages - sudo access required"
+        echo "    Please run 'sudo apt update && sudo apt install ${to_install[*]}' manually"
+        exit 1
+      fi
+  
+      if ! sudo apt update -y &>/dev/null; then
+        echo "    ❌ Error: Failed to update package lists"
+        exit 1
+      fi
+  
       if ! sudo apt install -y "${to_install[@]}"; then
         echo "  ❌ Error: Failed to install packages"
         echo "  Attempt to install manually: sudo apt install -y ${to_install[*]}"
@@ -362,7 +400,7 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
         echo "  ✅ Successfully installed: ${to_install[*]}"
       fi
     fi
-
+    
     if [ ${#unknown_to_install[@]} -gt 0 ] ; then
       echo "      📦 Unknown packages to install: ${unknown_to_install[*]}"
       if ! sudo apt install -y "${unknown_to_install[@]}" &>/dev/null; then
@@ -373,9 +411,6 @@ _fix_deps DEPS="command,compgen,echo,mkdir,printf,set,sudo,true,uname,xargs":
           echo "  ✅ Successfully installed: ${unknown_to_install[*]}"
       fi
     fi
-  else
-    echo "    [05/07] All packages already installed."
-  fi
 
   echo "    [06/07] Final verification..."
   final_missing=()
@@ -469,7 +504,7 @@ doit:
   just kics
   just csv
 # upgrades Ubuntu and all seperately installed tools
-upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm,set,sudo,wget")
+upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,gradle,mkdir,printf,rm,set,sudo,wget")
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -484,7 +519,7 @@ upgrade: _homebrew (_fix_deps "basename,chmod,curl,echo,find,git,mkdir,printf,rm
     echo "  !!! user cannot run passwordless sudo"
   fi
   #curl -sSL https://strix.ai/install | bash
-  sudo apt update -y && sudo apt upgrade -y && sudo apt install gradle # needed for codeql
+  sudo apt update -y && sudo apt upgrade -y
   # TODO check if homebrew can be found or not
   bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
   echo >> ~/.bashrc
@@ -803,7 +838,7 @@ codeql: _codeql-install (_fix_deps "basename,command,echo,find,gradle,mkdir,prin
   codeql_version=$(codeql --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run (CodeQL $codeql_version) with $total_results total findings across ${#languages[@]} language(s)."
 # installs 'gitleaks' using Homebrew. Needs Internet access.
-_gitleaks-brew: _homebrew
+_gitleaks-brew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'gitleaks'."
@@ -817,7 +852,10 @@ _gitleaks-brew: _homebrew
     linux*)
       eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
       ;;
-    *) echo "unsupported" ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
   esac
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
   brew install -y gitleaks  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_gitleaks_installation.log
@@ -925,15 +963,29 @@ _homebrew: (_fix_deps "basename,case,command,curl,echo,eval,export,find,hostname
 _kics-brew: _homebrew
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'kics'."
-  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'kics'."
     mkdir -p "$JUST_HOME"/logs/homebrew
-  fi
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/opt/homebrew/opt/kics/share/kics/assets/queries
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
   printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
   if ! command -v kics ; then
-    brew install kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
+    brew install -y kics  &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_kics_installation.log
     export PATH=/home/linuxbrew/.linuxbrew/opt/kics/bin:$PATH
   fi
   kics_version=$(kics version 2>/dev/null | head -1 || echo "unknown")
@@ -956,10 +1008,20 @@ kics: _kics-brew
   if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
     mv "$JUST_HOME"/.gitignore "$JUST_HOME"/"$dt"_gitignore
   fi
-  if ! command -v kics >/dev/null 2>&1 ; then
-    export PATH=/home/linuxbrew/.linuxbrew/opt/kics/bin:$PATH
-  fi
-  export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/opt/homebrew/opt/kics/share/kics/assets/queries
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      export KICS_QUERIES_PATH=/home/linuxbrew/.linuxbrew/opt/kics/share/kics/assets/queries
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac  
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
     TEMP_DIR="$(mktemp -q -d "$JUST_HOME"/src/kics.XXX)"
     TEMP_FOLDER="${TEMP_DIR##*/}"
@@ -1005,22 +1067,33 @@ kics: _kics-brew
   fi
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run with $KICS_RESULTS findings."
 # installs Homebrew if needed (required by OWASP Noir installation). Needs Internet access.
-_noir-brew: _homebrew
+_noir-brew:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Check installation of 'OWASP Noir'."
   if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
     mkdir -p "$JUST_HOME"/logs/homebrew
   fi
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
   if ! command -v brew >/dev/null 2>&1; then
     echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
   else
     printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
-    brew install noir &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
+    brew install -y noir &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_noir_installation.log
   fi
   noir_version=$(noir --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished checking installation of 'OWASP Noir' (Noir $noir_version)."
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] 'OWASP Noir' (Noir $noir_version) is installed."
 # runs OWASP Noir to determine Attack Surface (not using AI)
 noir: _noir-brew
   #!/usr/bin/env bash
@@ -1036,12 +1109,23 @@ noir: _noir-brew
     mkdir -p "$JUST_HOME"/output/sarif/{old,no_results} && \
     mkdir -p "$JUST_HOME"/src && \
     echo "    [01/04] Created work folders."
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac    
   if [ -d "$JUST_HOME/src/" ] && [ "$(ls -A "$JUST_HOME/src/")" ]; then
-    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
     echo "    [02/04] Running OWASP Noir scan..."
     if noir -b "$JUST_HOME"/src -T --format sarif --no-color -o "$JUST_HOME"/output/noir/"$safe_dt"_noir.sarif 2>&1 | tee "$JUST_HOME"/logs/noir/"$safe_dt"_noir.sarif.log; then
       noir_version=$(noir --version 2>/dev/null || echo "unknown")
-      echo "    [02/04] Successfully ran Noir $noir_version and created report in SARIF format."
+      echo "    [02/04] Successfully ran Noir $noir_version and created SARIF report created."
     else
       echo "  !!! WARNING: Noir completed with errors. Check $JUST_HOME/logs/noir/"$safe_dt"_noir.sarif.log"
     fi
@@ -1067,7 +1151,7 @@ noir: _noir-brew
   noir_version=$(noir --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End run 'OWASP Noir' ($noir_version) with $NOIR_RESULTS findings."
 # verifies installation of 'Alibaba Open Code Review (ocr)''
-_ocr-curl: (_fix_deps "command,curl,echo,hostname,printf")
+_ocr-curl:
   #!/usr/bin/env bash
   set -euo pipefail
   JUST_HOME="$PWD" && \
@@ -1075,14 +1159,60 @@ _ocr-curl: (_fix_deps "command,curl,echo,hostname,printf")
     progname="$(basename "$0")" &&
     printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 &&
     echo "$dt [$HOST_NAME] [$progname] Check installation of 'Alibaba Open Code Review'."
-  if ! command -v ocr >/dev/null 2>&1; then
-    echo "    [01/01] Installing 'Alibaba Open Code Review'."
+    echo "    [01/01] Installing/Upgrading 'Alibaba Open Code Review'."
     curl -fsSL https://raw.githubusercontent.com/alibaba/open-code-review/main/install.sh | sh
-  else
-    echo "    [01/01] 'Alibaba Open Code Review' is already installed."
+  ocr_version=$(ocr --version 2>/dev/null | head -1 ||echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] 'Alibaba ($ocr_version) installed."
+# runs Alibaba Open Code Review over all source files in '/src'
+ocr: _ocr-curl (_fix_deps "jq")
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD"
+  HOST_NAME="$(hostname)"
+  progname="$(basename "$0")"
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
+  printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+  echo "$dt [$HOST_NAME] [$progname] Start Alibaba Open Code Review scan over sources in /src."
+  mkdir -p "$JUST_HOME"/{logs/ocr,output/ocr,output/sarif/old,tmp}
+  if [ ! -d "$JUST_HOME/src" ] || [ -z "$(ls -A "$JUST_HOME/src")" ]; then
+    echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    exit 1
   fi
-  ocr_version=$(ocr --version)
-  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Finished setting up 'Alibaba Open Code Review' ($ocr_version)."
+  if ! command -v ocr >/dev/null 2>&1; then
+    echo "  !!! ERROR: OCR is not installed. Run 'just _ocr-curl' first."
+    exit 1
+  fi
+
+  # The project ignores /src in Git, while OCR uses Git to enumerate scan files.
+  if [ -f "$JUST_HOME/.gitignore" ]; then
+    gitignore_dir="$(mktemp -d "$JUST_HOME/tmp/ocr_gitignore.XXXXXX")"
+    trap 'if [ -f "$gitignore_dir/.gitignore" ]; then mv -- "$gitignore_dir/.gitignore" "$JUST_HOME/.gitignore"; fi; rmdir "$gitignore_dir"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    mv -- "$JUST_HOME/.gitignore" "$gitignore_dir/.gitignore"
+  fi
+
+  report="$JUST_HOME/output/ocr/${safe_dt}_ocr.sarif"
+  log="$JUST_HOME/logs/ocr/${safe_dt}_ocr.log"
+  echo "    [01/02] Running OCR full-file scan..."
+  if ocr scan --repo "$JUST_HOME" --path src --format sarif --output "$report" >"$log" 2>&1; then
+    echo "    [01/02] OCR scan completed successfully."
+  else
+    status=$?
+    echo "  !!! ERROR: OCR scan failed with exit code $status. Check $log"
+    exit "$status"
+  fi
+  if [ ! -s "$report" ] || ! jq -e '.version == "2.1.0" and (.runs | type == "array")' "$report" >/dev/null; then
+    echo "  !!! ERROR: OCR did not create a valid SARIF report. Check $log"
+    exit 1
+  fi
+  mv --force "$JUST_HOME"/output/sarif/*_ocr.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+  cp "$report" "$JUST_HOME/output/sarif/"
+  echo "    [02/02] Copied SARIF results to '/output/sarif'."
+  OCR_RESULTS=$(jq '[.runs[].results[]?] | length' "$report")
+  ocr_version=$(ocr --version 2>/dev/null | head -1 || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
+  echo "$dt [$HOST_NAME] [$progname] End Alibaba Open Code Review ($ocr_version) with $OCR_RESULTS findings."
 # verifies installation of 'Opengrep'
 _opengrep-wget: (_fix_deps "command,echo,git,printf,sudo,wget")
   #!/usr/bin/env bash
@@ -1203,11 +1333,59 @@ opengrep: _opengrep-wget
   fi
   og_version=$(opengrep --version 2>/dev/null || echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] End 'Opengrep' ($og_version) run with $OPENGREP_RESULTS findings."
-# runs Google OSV scanner for SCA over sources in '/src'
-osv-scanner: (_fix_deps "echo,jq,printf")
+# Installs Google OSV scanner with 'brew'
+_osv-scanner-brew:
   #!/usr/bin/env bash
   set -euo pipefail
-  JUST_HOME="$PWD" && HOST_NAME="$(hostname)" && progname="$(basename "$0")" && printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Start run."
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Check installation of 'Google OSV Scanner'."
+  if ! [ -d "$JUST_HOME/logs/homebrew/" ] ; then
+    mkdir -p "$JUST_HOME"/logs/homebrew
+  fi
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac
+  if ! command -v brew >/dev/null 2>&1; then
+    echo "  !!! Homebrew not installed (will never happen, but I have a cat). Try installing it with 'just _homebrew'."
+  else
+    printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+    brew install -y osv-scanner &> "$JUST_HOME"/logs/homebrew/"$safe_dt"_homebrew_osv_installation.log
+  fi
+  osv_version=$(osv-scanner --version 2>/dev/null | head -1 ||echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] Google $osv_version is installed."  
+# runs Google OSV scanner for SCA over sources in '/src'
+osv-scanner: _osv-scanner-brew (_fix_deps "jq")
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD" && \
+    HOST_NAME="$(hostname)" && \
+    progname="$(basename "$0")" && \
+    printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && \
+    echo "$dt [$HOST_NAME] [$progname] Start run."
+  case "$OSTYPE" in
+    darwin*)
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+      ;;
+    linux*)
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+      ;;
+    *) 
+      echo "unsupported Operating System" 
+      exit 1
+      ;;
+  esac  
   if [ -d "$JUST_HOME"/src/ ] && [ "$(ls -A "$JUST_HOME"/src/)" ]; then
       # if .gitignore in top level (e.g. you are a baldwin.sh dev) osv-scanner will find that and use it (and it should not).
       if [ -f "$JUST_HOME/".gitignore ] && [ -w "$JUST_HOME"/.gitignore ]; then
@@ -1218,7 +1396,6 @@ osv-scanner: (_fix_deps "echo,jq,printf")
         mkdir -p "$JUST_HOME"/src/ && \
         echo "    [01/04] Created work folders."
       echo "    [02/04] Running OSV-scanner (Markdown)..."
-      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
       if osv-scanner scan --format markdown -r "$JUST_HOME"/src &>>"$JUST_HOME"/logs/osv/"$dt"_osv_markdown.log > "$JUST_HOME"/output/osv/"$dt"_google-osv-scanner.md; then
         echo "    [02/04] OSV-scanner Markdown output completed successfully."
       else

@@ -1082,6 +1082,56 @@ _ocr-curl:
     curl -fsSL https://raw.githubusercontent.com/alibaba/open-code-review/main/install.sh | sh
   ocr_version=$(ocr --version 2>/dev/null | head -1 ||echo "unknown")
   printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1 && echo "$dt [$HOST_NAME] [$progname] 'Alibaba ($ocr_version) installed."
+# runs Alibaba Open Code Review over all source files in '/src'
+ocr: _ocr-curl (_fix_deps "jq")
+  #!/usr/bin/env bash
+  set -euo pipefail
+  JUST_HOME="$PWD"
+  HOST_NAME="$(hostname)"
+  progname="$(basename "$0")"
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
+  printf -v safe_dt '%(%Y%m%d_%H%M%S)T' -1
+  echo "$dt [$HOST_NAME] [$progname] Start Alibaba Open Code Review scan over sources in /src."
+  mkdir -p "$JUST_HOME"/{logs/ocr,output/ocr,output/sarif/old,tmp}
+  if [ ! -d "$JUST_HOME/src" ] || [ -z "$(ls -A "$JUST_HOME/src")" ]; then
+    echo "  !!! ERROR: The source code folder '/src' is empty. Please unpack the sources with 'just unpack'."
+    exit 1
+  fi
+  if ! command -v ocr >/dev/null 2>&1; then
+    echo "  !!! ERROR: OCR is not installed. Run 'just _ocr-curl' first."
+    exit 1
+  fi
+
+  # The project ignores /src in Git, while OCR uses Git to enumerate scan files.
+  if [ -f "$JUST_HOME/.gitignore" ]; then
+    gitignore_dir="$(mktemp -d "$JUST_HOME/tmp/ocr_gitignore.XXXXXX")"
+    trap 'if [ -f "$gitignore_dir/.gitignore" ]; then mv -- "$gitignore_dir/.gitignore" "$JUST_HOME/.gitignore"; fi; rmdir "$gitignore_dir"' EXIT
+    trap 'exit 130' INT
+    trap 'exit 143' TERM
+    mv -- "$JUST_HOME/.gitignore" "$gitignore_dir/.gitignore"
+  fi
+
+  report="$JUST_HOME/output/ocr/${safe_dt}_ocr.sarif"
+  log="$JUST_HOME/logs/ocr/${safe_dt}_ocr.log"
+  echo "    [01/02] Running OCR full-file scan..."
+  if ocr scan --repo "$JUST_HOME" --path src --format sarif --output "$report" >"$log" 2>&1; then
+    echo "    [01/02] OCR scan completed successfully."
+  else
+    status=$?
+    echo "  !!! ERROR: OCR scan failed with exit code $status. Check $log"
+    exit "$status"
+  fi
+  if [ ! -s "$report" ] || ! jq -e '.version == "2.1.0" and (.runs | type == "array")' "$report" >/dev/null; then
+    echo "  !!! ERROR: OCR did not create a valid SARIF report. Check $log"
+    exit 1
+  fi
+  mv --force "$JUST_HOME"/output/sarif/*_ocr.sarif "$JUST_HOME"/output/sarif/old/ 2>/dev/null || true
+  cp "$report" "$JUST_HOME/output/sarif/"
+  echo "    [02/02] Copied SARIF results to '/output/sarif'."
+  OCR_RESULTS=$(jq '[.runs[].results[]?] | length' "$report")
+  ocr_version=$(ocr --version 2>/dev/null | head -1 || echo "unknown")
+  printf -v dt '%(%Y-%m-%d_%H:%M:%S)T' -1
+  echo "$dt [$HOST_NAME] [$progname] End Alibaba Open Code Review ($ocr_version) with $OCR_RESULTS findings."
 # verifies installation of 'Opengrep'
 _opengrep-wget: (_fix_deps "command,echo,git,printf,sudo,wget")
   #!/usr/bin/env bash

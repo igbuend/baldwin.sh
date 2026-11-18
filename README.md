@@ -269,10 +269,13 @@ graph TD
 | `depscan` | performs SCA with OWASP depscan over sources in `/src` |
 | `gitleaks` | Searches for secrets with Gitleaks |
 | `kics` | Checks cloud config (using KICS) over sources in `/src` |
+| `ocr` | Runs Alibaba Open Code Review over sources in `/src`; saves SARIF in `/output/ocr` and `/output/sarif`, with a log in `/logs/ocr` |
 | `opengrep` | Runs Opengrep over sources in `/src` |
 | `osv-scanner` | Runs Google OSV scanner for SCA over sources in `/src` |
 | `sha256` | Calculates SHA256 hash of source archives in `/input` |
 | `unpack` | Unzips source archive(s) from `/input` into `/src` |
+
+To run OCR separately, configure its LLM endpoint in `.env` (see `sample.env`), place sources in `/src`, then run `just ocr`. OCR performs a full-file scan and may incur LLM usage costs.
 
 ## Create your Personalized baldwin.sh
 
